@@ -73,6 +73,13 @@
     updatePagination: null,
     clearAllFilters: null,
   };
+  const bootState = {
+    timerId: null,
+    stableChecks: 0,
+    lastItemCount: 0,
+    listHooked: false,
+    manualLoadPromise: null,
+  };
 
   function createEmptyFilters() {
     return {
@@ -1273,9 +1280,185 @@
     refreshLastItemBorders();
   }
 
+  function getWineItemCount() {
+    return document.querySelectorAll(".wine-item").length;
+  }
+
+  function getWineListElement() {
+    return document.querySelector('.wine-list[fs-list-element="list"], .wine-list.w-dyn-items');
+  }
+
+  function getPaginationInfo(rootDocument) {
+    const scope = rootDocument || document;
+    const pageCountText = normalizeText(scope.querySelector(".w-page-count") && scope.querySelector(".w-page-count").textContent);
+    const parts = pageCountText.split("/").map(function (part) {
+      return normalizeText(part);
+    });
+    const currentPage = Number.parseInt(parts[0], 10);
+    const totalPages = Number.parseInt(parts[1], 10);
+    const nextLink = scope.querySelector(".w-pagination-next");
+
+    return {
+      currentPage: Number.isFinite(currentPage) ? currentPage : 1,
+      totalPages: Number.isFinite(totalPages) ? totalPages : 1,
+      nextUrl: nextLink ? new URL(nextLink.getAttribute("href"), window.location.href).toString() : null,
+    };
+  }
+
+  async function loadAllWinePagesFallback() {
+    if (bootState.manualLoadPromise) {
+      return bootState.manualLoadPromise;
+    }
+
+    const wineList = getWineListElement();
+    const pagination = getPaginationInfo();
+
+    if (!wineList || pagination.totalPages <= 1 || getWineItemCount() > 20) {
+      return Promise.resolve();
+    }
+
+    bootState.manualLoadPromise = (async function () {
+      const parser = new DOMParser();
+      const seenSlugs = new Set(
+        $$(".wine-item .slug.w-embed")
+          .map(function (element) {
+            return normalizeText(element.textContent);
+          })
+          .filter(Boolean),
+      );
+      const nextPageUrl = new URL(pagination.nextUrl);
+      const pageParamName = Array.from(nextPageUrl.searchParams.keys()).find(function (key) {
+        return key.endsWith("_page");
+      });
+      const pageUrls = [];
+
+      for (let pageNumber = pagination.currentPage + 1; pageNumber <= pagination.totalPages; pageNumber += 1) {
+        const pageUrl = new URL(window.location.href);
+        pageUrl.search = "";
+        nextPageUrl.searchParams.forEach(function (value, key) {
+          pageUrl.searchParams.set(key, value);
+        });
+
+        if (pageParamName) {
+          pageUrl.searchParams.set(pageParamName, String(pageNumber));
+        }
+
+        pageUrls.push(pageUrl.toString());
+      }
+
+      const pages = await Promise.all(
+        pageUrls.map(async function (pageUrl) {
+          const response = await window.fetch(pageUrl, {
+            credentials: "same-origin",
+          });
+
+          if (!response.ok) {
+            throw new Error("Failed to fetch " + pageUrl + " (" + response.status + ")");
+          }
+
+          return response.text();
+        }),
+      );
+
+      pages.forEach(function (html) {
+        const nextDocument = parser.parseFromString(html, "text/html");
+        const nextWineList = nextDocument.querySelector('.wine-list[fs-list-element="list"], .wine-list.w-dyn-items');
+
+        if (!nextWineList) {
+          return;
+        }
+
+        $$(".wine-item.w-dyn-item", nextWineList).forEach(function (item) {
+          const slug = normalizeText($(".slug.w-embed", item) && $(".slug.w-embed", item).textContent);
+
+          if (!slug || seenSlugs.has(slug)) {
+            return;
+          }
+
+          seenSlugs.add(slug);
+          wineList.appendChild(item);
+        });
+      });
+    })();
+
+    return bootState.manualLoadPromise;
+  }
+
+  function scheduleBootAfterListReady() {
+    if (window.__bwcWinesListViewBooted) {
+      return;
+    }
+
+    window.clearTimeout(bootState.timerId);
+    bootState.lastItemCount = getWineItemCount();
+    bootState.stableChecks = 0;
+
+    bootState.timerId = window.setTimeout(async function verifyStability() {
+      const currentItemCount = getWineItemCount();
+
+      if (currentItemCount !== bootState.lastItemCount) {
+        bootState.lastItemCount = currentItemCount;
+        bootState.stableChecks = 0;
+        bootState.timerId = window.setTimeout(verifyStability, 500);
+        return;
+      }
+
+      bootState.stableChecks += 1;
+
+      if (bootState.stableChecks < 3) {
+        bootState.timerId = window.setTimeout(verifyStability, 500);
+        return;
+      }
+
+      try {
+        await loadAllWinePagesFallback();
+      } catch (error) {
+        console.error("Failed to load all paginated wine items:", error);
+      }
+
+      if (getWineItemCount() !== bootState.lastItemCount) {
+        bootState.lastItemCount = getWineItemCount();
+        bootState.stableChecks = 0;
+        bootState.timerId = window.setTimeout(verifyStability, 500);
+        return;
+      }
+
+      boot();
+    }, 500);
+  }
+
+  function registerFinsweetSync() {
+    if (bootState.listHooked) {
+      return;
+    }
+
+    bootState.listHooked = true;
+
+    const queue = window.FinsweetAttributes || window.fsAttributes || [];
+    const onListReady = function (listInstances) {
+      scheduleBootAfterListReady();
+
+      const firstListInstance = listInstances && listInstances[0];
+      if (firstListInstance && typeof firstListInstance.on === "function") {
+        firstListInstance.on("renderitems", function () {
+          scheduleBootAfterListReady();
+        });
+      }
+    };
+
+    window.FinsweetAttributes = queue;
+    window.fsAttributes = queue;
+    queue.push(["list", onListReady]);
+    queue.push(["cmsload", onListReady]);
+
+    window.setTimeout(function () {
+      scheduleBootAfterListReady();
+    }, 4000);
+  }
+
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", boot, { once: true });
+    document.addEventListener("DOMContentLoaded", registerFinsweetSync, { once: true });
   } else {
-    boot();
+    registerFinsweetSync();
   }
 })();
