@@ -60,7 +60,149 @@
       text-decoration: underline;
     }
 
+    .bwc-domain-skeleton {
+      padding: 14px 0 18px;
+    }
+
+    .bwc-domain-skeleton-card {
+      display: grid;
+      grid-template-columns: minmax(220px, 410px) minmax(260px, 1fr);
+      gap: 34px;
+      padding: 24px 28px;
+      border: 1px solid #ece7e0;
+      background: #fffdfa;
+      align-items: center;
+    }
+
+    .bwc-domain-skeleton-media {
+      aspect-ratio: 1 / 1;
+      border: 1px solid #d9edf6;
+      background: #ffffff;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .bwc-domain-skeleton-media::before,
+    .bwc-domain-skeleton-media::after,
+    .bwc-domain-skeleton-line {
+      background: linear-gradient(90deg, #f4f1eb 0%, #e8e2da 45%, #f4f1eb 100%);
+      background-size: 220% 100%;
+      animation: bwcDomainSkeleton 1.2s ease-in-out infinite;
+    }
+
+    .bwc-domain-skeleton-media::before {
+      content: "";
+      position: absolute;
+      inset: 18px;
+      opacity: 0.9;
+    }
+
+    .bwc-domain-skeleton-media::after {
+      content: "";
+      position: absolute;
+      left: 24px;
+      right: 24px;
+      bottom: 20px;
+      height: 18px;
+      border-radius: 999px;
+    }
+
+    .bwc-domain-skeleton-content {
+      display: grid;
+      gap: 18px;
+    }
+
+    .bwc-domain-skeleton-line {
+      height: 18px;
+      border-radius: 999px;
+    }
+
+    .bwc-domain-skeleton-line.is-domain {
+      width: min(360px, 72%);
+      height: 20px;
+      letter-spacing: 0.35em;
+    }
+
+    .bwc-domain-skeleton-line.is-title {
+      width: min(310px, 58%);
+      height: 44px;
+      border-radius: 10px;
+    }
+
+    .bwc-domain-skeleton-divider {
+      height: 1px;
+      background: #ddd4c8;
+      width: 100%;
+    }
+
+    .bwc-domain-skeleton-meta {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .bwc-domain-skeleton-line.is-year {
+      width: 96px;
+    }
+
+    .bwc-domain-skeleton-line.is-sep {
+      width: 1px;
+      height: 42px;
+      border-radius: 0;
+      background: #ddd4c8;
+      animation: none;
+    }
+
+    .bwc-domain-skeleton-line.is-cat {
+      width: 68px;
+    }
+
+    .bwc-domain-skeleton-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      padding-top: 18px;
+    }
+
+    .bwc-domain-skeleton-line.is-price {
+      width: 126px;
+      height: 38px;
+      border-radius: 10px;
+    }
+
+    .bwc-domain-skeleton-line.is-cta {
+      width: 180px;
+      height: 28px;
+      border-radius: 999px;
+    }
+
+    @keyframes bwcDomainSkeleton {
+      0% {
+        background-position: 100% 0;
+      }
+
+      100% {
+        background-position: -100% 0;
+      }
+    }
+
     @media (max-width: 991px) {
+      .bwc-domain-skeleton-card {
+        grid-template-columns: 1fr;
+        gap: 18px;
+        padding: 18px;
+      }
+
+      .bwc-domain-skeleton-media {
+        max-width: 320px;
+      }
+
+      .bwc-domain-skeleton-footer {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
       .sort-sticky {
         height: calc(100vh - 60px) !important;
       }
@@ -626,6 +768,78 @@
     return orderMap;
   }
 
+  function getDomainContentContainer(domain) {
+    return domain && $(".winecatgroupcontainer", domain.wrapper);
+  }
+
+  function getDomainSkeleton(domain) {
+    const container = getDomainContentContainer(domain);
+    return container && $(".bwc-domain-skeleton", container);
+  }
+
+  function createDomainSkeleton() {
+    const skeleton = document.createElement("div");
+    skeleton.className = "bwc-domain-skeleton";
+    skeleton.innerHTML =
+      '<div class="bwc-domain-skeleton-card">' +
+      '<div class="bwc-domain-skeleton-media"></div>' +
+      '<div class="bwc-domain-skeleton-content">' +
+      '<div class="bwc-domain-skeleton-line is-domain"></div>' +
+      '<div class="bwc-domain-skeleton-line is-title"></div>' +
+      '<div class="bwc-domain-skeleton-divider"></div>' +
+      '<div class="bwc-domain-skeleton-meta">' +
+      '<div class="bwc-domain-skeleton-line is-year"></div>' +
+      '<div class="bwc-domain-skeleton-line is-sep"></div>' +
+      '<div class="bwc-domain-skeleton-line is-cat"></div>' +
+      '</div>' +
+      '<div class="bwc-domain-skeleton-divider"></div>' +
+      '<div class="bwc-domain-skeleton-footer">' +
+      '<div class="bwc-domain-skeleton-line is-price"></div>' +
+      '<div class="bwc-domain-skeleton-line is-cta"></div>' +
+      '</div>' +
+      '</div>' +
+      '</div>';
+    return skeleton;
+  }
+
+  function hasLoadedDomainWines(domain) {
+    return Boolean(domain && $(".wine-item", domain.wrapper));
+  }
+
+  function syncDomainSkeleton(domain) {
+    const container = getDomainContentContainer(domain);
+    if (!container) {
+      return;
+    }
+
+    const skeleton = getDomainSkeleton(domain);
+    const shouldShowSkeleton = !state.allWinePagesLoaded && !hasLoadedDomainWines(domain);
+
+    if (!shouldShowSkeleton) {
+      if (skeleton) {
+        skeleton.remove();
+      }
+      domain.wrapper.dataset.pendingLoad = "false";
+      return;
+    }
+
+    if (!skeleton) {
+      container.appendChild(createDomainSkeleton());
+    }
+
+    domain.wrapper.dataset.pendingLoad = "true";
+  }
+
+  function syncDomainSkeletons() {
+    state.domains.forEach(syncDomainSkeleton);
+  }
+
+  function registerCartListingItems(root) {
+    if (typeof window.__bwcRegisterCartListingItems === "function") {
+      window.__bwcRegisterCartListingItems(root || document);
+    }
+  }
+
   async function appendWineItemsToBootedDom(items) {
     const domainsByKey = new Map();
     const domainOrderMap = getDomainRenderOrderMap();
@@ -673,6 +887,7 @@
 
       formatWineDisplayPrices(item);
       targetLocation.appendChild(item);
+      registerCartListingItems(item);
       lastDomainKey = domainKey;
       appendedCount += 1;
     }
@@ -681,6 +896,7 @@
       return 0;
     }
 
+    syncDomainSkeletons();
     collectWineEntries();
 
     if (state.allWinePagesLoaded) {
@@ -1106,25 +1322,27 @@
         }
       });
 
-      state.domains.forEach(function (domain) {
-        const categoryBlocks = $$(".cat-sep", domain.wrapper);
-        let hasVisibleCategory = false;
+    state.domains.forEach(function (domain) {
+      const categoryBlocks = $$(".cat-sep", domain.wrapper);
+      let hasVisibleCategory = false;
+      const hasPendingLoad = domain.wrapper.dataset.pendingLoad === "true";
 
-        categoryBlocks.forEach(function (block) {
-          const hasVisibleWines = $$(".wine-item", block).some(function (wineItem) {
-            return wineItem.dataset.filterVisible === "true";
-          });
+      categoryBlocks.forEach(function (block) {
+        const hasVisibleWines = $$(".wine-item", block).some(function (wineItem) {
+          return wineItem.dataset.filterVisible === "true";
+        });
 
           block.style.display = hasVisibleWines ? "" : "none";
           hasVisibleCategory = hasVisibleCategory || hasVisibleWines;
         });
 
-        domain.wrapper.dataset.filterVisible = hasVisibleCategory ? "true" : "false";
+      const shouldKeepPendingDomainVisible = hasPendingLoad && !filtersActive;
+      domain.wrapper.dataset.filterVisible = hasVisibleCategory || shouldKeepPendingDomainVisible ? "true" : "false";
 
-        if (hasVisibleCategory && domain.parentKey) {
-          visibleChildrenByParent.set(domain.parentKey, true);
-        }
-      });
+      if (hasVisibleCategory && domain.parentKey) {
+        visibleChildrenByParent.set(domain.parentKey, true);
+      }
+    });
 
       state.domains.forEach(function (domain) {
         const showForChildren = !domain.parentKey && visibleChildrenByParent.has(domain.nameKey);
@@ -1550,7 +1768,9 @@
     sortDomainFilterOptions();
     splitItemsIntoDomains();
     initWineType();
+    syncDomainSkeletons();
     formatWineDisplayPrices(document);
+    registerCartListingItems(document);
     collectWineEntries();
     removeUnusedYears();
     state.activeFilters = parseActiveFilters();
@@ -1618,6 +1838,7 @@
 
   function finalizeLoadedWinePages() {
     state.allWinePagesLoaded = true;
+    syncDomainSkeletons();
     pruneEmptyDomains();
     removeUnusedYears();
     collectWineEntries();
@@ -1676,22 +1897,26 @@
 
       for (let batchStart = 0; batchStart < pageUrls.length; batchStart += FALLBACK_PAGES_PER_BATCH) {
         const batchUrls = pageUrls.slice(batchStart, batchStart + FALLBACK_PAGES_PER_BATCH);
+        const pages = await Promise.all(
+          batchUrls.map(async function (pageUrl) {
+            const response = await window.fetch(pageUrl, {
+              credentials: "same-origin",
+            });
 
-        for (const pageUrl of batchUrls) {
-          const response = await window.fetch(pageUrl, {
-            credentials: "same-origin",
-          });
+            if (!response.ok) {
+              throw new Error("Failed to fetch " + pageUrl + " (" + response.status + ")");
+            }
 
-          if (!response.ok) {
-            throw new Error("Failed to fetch " + pageUrl + " (" + response.status + ")");
-          }
+            return response.text();
+          }),
+        );
 
-          const html = await response.text();
+        pages.forEach(function (html) {
           const nextDocument = parser.parseFromString(html, "text/html");
           const nextWineList = nextDocument.querySelector('.wine-list[fs-list-element="list"], .wine-list.w-dyn-items');
 
           if (!nextWineList) {
-            continue;
+            return;
           }
 
           $$(".wine-item.w-dyn-item", nextWineList).forEach(function (item) {
@@ -1710,9 +1935,9 @@
 
             wineList.appendChild(item);
           });
+        });
 
-          setWinesLoadedText(true, seenSlugs.size, totalCountLabel);
-        }
+        setWinesLoadedText(true, seenSlugs.size, totalCountLabel);
       }
 
       if (window.__bwcWinesListViewBooted && deferredItems.length) {
@@ -1740,10 +1965,7 @@
     initLoader();
     boot();
     setWinesLoadedText(false);
-
-    if (getWineItemCount() >= LOADER_HIDE_AFTER_ITEM_COUNT) {
-      hideLoader();
-    }
+    hideLoader();
 
     try {
       await loadAllWinePagesFallback();

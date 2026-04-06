@@ -1,4 +1,4 @@
-const BWC_VERSION = "v1.1.3";
+const BWC_VERSION = "v1.1.6";
 
 window.__BWC_VERSION__ = BWC_VERSION;
 console.log("[bwc] version", BWC_VERSION);
@@ -138,6 +138,7 @@ function runINIT() {
 	renderCart();
 	syncListingButtons();
 	startPopupController();
+	window.__bwcRegisterCartListingItems = bindListingItems;
 
 	function removeEmptyBindings() {
 		document.querySelectorAll(".w-condition-invisible.w-dyn-bind-empty").forEach((element) => element.remove());
@@ -458,9 +459,14 @@ function runINIT() {
 		};
 	}
 
-	function bindListingItems() {
-		const listingItems = document.querySelectorAll(`.${config.classes.items}`);
+	function bindListingItems(root) {
+		const scope = root instanceof Element ? root : document;
+		const listingItems = scope.querySelectorAll(`.${config.classes.items}`);
 		listingItems.forEach((itemContainer) => {
+			if (itemContainer.dataset.bwcCartBound === "true") {
+				return;
+			}
+
 			const item = extractListingItem(itemContainer);
 			if (item === null) {
 				return;
@@ -474,6 +480,8 @@ function runINIT() {
 				event.stopPropagation();
 				addCartItem(itemKey, item);
 			});
+			itemContainer.dataset.bwcCartBound = "true";
+			setListingButtonState(itemKey, getCartItem(itemKey) !== undefined);
 		});
 	}
 
