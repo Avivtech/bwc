@@ -61,6 +61,9 @@
     }
 
     .bwc-domain-skeleton {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 20px;
       padding: 14px 0 18px;
     }
 
@@ -188,6 +191,10 @@
     }
 
     @media (max-width: 991px) {
+      .bwc-domain-skeleton {
+        grid-template-columns: 1fr;
+      }
+
       .bwc-domain-skeleton-card {
         grid-template-columns: 1fr;
         gap: 18px;
@@ -778,9 +785,7 @@
   }
 
   function createDomainSkeleton() {
-    const skeleton = document.createElement("div");
-    skeleton.className = "bwc-domain-skeleton";
-    skeleton.innerHTML =
+    const skeletonCard =
       '<div class="bwc-domain-skeleton-card">' +
       '<div class="bwc-domain-skeleton-media"></div>' +
       '<div class="bwc-domain-skeleton-content">' +
@@ -799,6 +804,9 @@
       '</div>' +
       '</div>' +
       '</div>';
+    const skeleton = document.createElement("div");
+    skeleton.className = "bwc-domain-skeleton";
+    skeleton.innerHTML = skeletonCard + skeletonCard;
     return skeleton;
   }
 
