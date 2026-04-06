@@ -6,6 +6,7 @@
   window.__bwcWinesListViewRegistered = true;
 
   const PAGE_PATH = "/the-wines-list-view-test";
+  const LOADER_HIDE_AFTER_ITEM_COUNT = 50;
   const DEFAULT_CATEGORY_ORDER = [
     "אדום",
     "לבן",
@@ -74,6 +75,13 @@
     clearAllFilters: null,
   };
   let manualLoadPromise = null;
+  const loaderState = {
+    element: null,
+    hidden: false,
+    hiding: false,
+    initialized: false,
+    startedAt: 0,
+  };
 
   function createEmptyFilters() {
     return {
@@ -117,6 +125,20 @@
         fn.apply(context, args);
       }, delay);
     };
+  }
+
+  function wait(ms) {
+    return new Promise(function (resolve) {
+      window.setTimeout(resolve, ms);
+    });
+  }
+
+  function nextFrame() {
+    return new Promise(function (resolve) {
+      window.requestAnimationFrame(function () {
+        resolve();
+      });
+    });
   }
 
   function setCheckboxState(input, checked) {
@@ -240,32 +262,31 @@
   }
 
   function initLoader() {
-    const loader = document.getElementById("loader");
-
-    if (!loader) {
+    if (loaderState.initialized) {
       return;
     }
 
-    async function completeLoader() {
-      await new Promise(function (resolve) {
-        window.setTimeout(resolve, 600);
-      });
+    loaderState.initialized = true;
+    loaderState.element = document.getElementById("loader");
+    loaderState.startedAt = Date.now();
+  }
 
-      loader.classList.add("done");
-
-      await new Promise(function (resolve) {
-        window.setTimeout(resolve, 400);
-      });
-
-      loader.classList.add("hide");
-    }
-
-    if (document.readyState === "complete") {
-      completeLoader();
+  async function hideLoader() {
+    if (!loaderState.element || loaderState.hidden || loaderState.hiding) {
       return;
     }
 
-    window.addEventListener("load", completeLoader, { once: true });
+    loaderState.hiding = true;
+
+    const elapsed = Date.now() - loaderState.startedAt;
+    if (elapsed < 250) {
+      await wait(250 - elapsed);
+    }
+
+    loaderState.element.classList.add("done");
+    await wait(400);
+    loaderState.element.classList.add("hide");
+    loaderState.hidden = true;
   }
 
   function initFilterBarMove() {
@@ -724,9 +745,11 @@
       const wrapper = dropdown && dropdown.parentElement;
       const inputs = wrapper ? $$(".filter-chk-box input", wrapper) : [];
       const items = inputs.map(function (input, index) {
+        const labelElement = input.closest(".filter-chk-box");
         const label = normalizeText(input.parentElement && $(".filter-chk-box-txt", input.parentElement) && $(".filter-chk-box-txt", input.parentElement).textContent);
         return {
           input: input,
+          labelElement: labelElement,
           label: label,
           isSelectAll: Boolean(config.hasSelectAllOption && index === 0),
         };
@@ -964,7 +987,7 @@
 
     state.filterControls.forEach(function (control) {
       control.items.forEach(function (item) {
-        item.input.addEventListener("change", function () {
+        function handleItemToggle() {
           if (item.isSelectAll) {
             if (item.input.checked) {
               selectAllForControl(control);
@@ -983,7 +1006,15 @@
           }
 
           applyFilters();
-        });
+        }
+
+        item.input.addEventListener("change", handleItemToggle);
+
+        if (item.labelElement) {
+          item.labelElement.addEventListener("click", function () {
+            window.setTimeout(handleItemToggle, 0);
+          });
+        }
       });
 
       if (control.clearButton) {
@@ -1282,6 +1313,11 @@
       return;
     }
 
+     if (!$(".cart-item")) {
+      window.__bwcCartInitialized = true;
+      return;
+    }
+
     window.__bwcCartInitialized = true;
     window.runINIT();
   }
@@ -1298,7 +1334,6 @@
     window.__bwcWinesListViewBooted = true;
 
     injectStyles();
-    initLoader();
     initFilterBarMove();
     initCart();
     sortDomainFilterOptions();
@@ -1382,27 +1417,28 @@
         pageUrls.push(pageUrl.toString());
       }
 
-      const pages = await Promise.all(
-        pageUrls.map(async function (pageUrl) {
-          const response = await window.fetch(pageUrl, {
-            credentials: "same-origin",
-          });
+      if (getWineItemCount() >= LOADER_HIDE_AFTER_ITEM_COUNT) {
+        hideLoader();
+      }
 
-          if (!response.ok) {
-            throw new Error("Failed to fetch " + pageUrl + " (" + response.status + ")");
-          }
+      for (const pageUrl of pageUrls) {
+        const response = await window.fetch(pageUrl, {
+          credentials: "same-origin",
+        });
 
-          return response.text();
-        }),
-      );
+        if (!response.ok) {
+          throw new Error("Failed to fetch " + pageUrl + " (" + response.status + ")");
+        }
 
-      pages.forEach(function (html) {
+        const html = await response.text();
         const nextDocument = parser.parseFromString(html, "text/html");
         const nextWineList = nextDocument.querySelector('.wine-list[fs-list-element="list"], .wine-list.w-dyn-items');
 
         if (!nextWineList) {
-          return;
+          continue;
         }
+
+        let appendedCount = 0;
 
         $$(".wine-item.w-dyn-item", nextWineList).forEach(function (item) {
           const slug = normalizeText($(".slug.w-embed", item) && $(".slug.w-embed", item).textContent);
@@ -1413,8 +1449,14 @@
 
           seenSlugs.add(slug);
           wineList.appendChild(item);
+          appendedCount += 1;
         });
-      });
+
+        if (appendedCount > 0 && getWineItemCount() >= LOADER_HIDE_AFTER_ITEM_COUNT) {
+          await nextFrame();
+          hideLoader();
+        }
+      }
     })();
 
     return manualLoadPromise;
@@ -1429,6 +1471,8 @@
       return;
     }
 
+    initLoader();
+
     try {
       await loadAllWinePagesFallback();
     } catch (error) {
@@ -1436,6 +1480,7 @@
     }
 
     boot();
+    hideLoader();
   }
 
   if (document.readyState === "complete") {
