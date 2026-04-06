@@ -862,6 +862,7 @@
 
     function applyFilters() {
       const textNeedle = normalizeLower(state.activeFilters.text);
+      const filtersActive = hasActiveFilters();
       let visibleWineCount = 0;
       const visibleChildrenByParent = new Map();
 
@@ -918,6 +919,10 @@
         countTarget.textContent = String(visibleWineCount);
       }
 
+      clearButtons.forEach(function (button) {
+        button.style.display = filtersActive ? "" : "none";
+      });
+
       state.filterControls.forEach(syncControlState);
       syncSearchValueClass();
       updateUrlState();
@@ -959,7 +964,7 @@
 
     state.filterControls.forEach(function (control) {
       control.items.forEach(function (item) {
-        item.input.addEventListener("input", function () {
+        item.input.addEventListener("change", function () {
           if (item.isSelectAll) {
             if (item.input.checked) {
               selectAllForControl(control);
