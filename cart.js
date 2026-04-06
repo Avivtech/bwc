@@ -1,3 +1,7 @@
+const CART_SCRIPT_VERSION = "v1.1.2";
+
+console.log("[bwc] cart.js loaded", CART_SCRIPT_VERSION);
+
 function runINIT() {
 	const config = {
 		text: {
@@ -33,6 +37,21 @@ function runINIT() {
 			cartJson: "mainjson",
 			successMessage: "success-message-div",
 		},
+		selectors: {
+			cartForm: "#cartForm",
+			cartContinue: "#cartCont",
+			cartBack: "#cartBack",
+			cartEnd: "#cartEnd",
+			submitOrderButton: "#submitOrderBtn",
+			nameInput: "#name",
+			emailInput: "#email",
+			phoneInput: "#phone",
+			cartNavDots: "#cartNav .w-slider-dot",
+			navCount: "#navCount",
+			cartButton: "#cart-btn",
+			cartCloseButton: "#cart-close-btn",
+			inputFields: ".input-field",
+		},
 		popup: {
 			wrapper: ".cart-popup-wrap",
 			domaine: ".cart-popup-domaine",
@@ -59,6 +78,21 @@ function runINIT() {
 		cartJson: null,
 		sampleCartItem: null,
 		clearButtons: [],
+		flow: {
+			cartForm: null,
+			cartContinue: null,
+			cartBack: null,
+			cartEnd: null,
+			submitOrderButton: null,
+			nameInput: null,
+			emailInput: null,
+			phoneInput: null,
+			cartNavDots: [],
+			navCount: null,
+			cartButton: null,
+			cartCloseButton: null,
+			inputFields: [],
+		},
 		popup: {
 			wrapper: null,
 			domaine: null,
@@ -82,14 +116,19 @@ function runINIT() {
 			currentHover: false,
 			leftDuration: config.popupDurationMs,
 		},
+		ui: {
+			navPulseTimeoutId: null,
+		},
 	};
 
 	removeEmptyBindings();
+	state.cart = loadCart();
+	cacheFlowElements();
+	bindFlowEvents();
+	syncFlowState(true);
 	if (cacheElements() === false) {
 		return;
 	}
-
-	state.cart = loadCart();
 	bindListingItems();
 	bindClearButtons();
 	bindSuccessMessageObserver();
@@ -244,6 +283,155 @@ function runINIT() {
 		elements.clearButtons = Array.from(document.querySelectorAll(`.${config.classes.cartClearItems}`));
 
 		return elements.cartCount !== null && elements.cartTotalPrice !== null && elements.cartContainer !== null && elements.cartJson !== null;
+	}
+
+	function cacheFlowElements() {
+		elements.flow.cartForm = document.querySelector(config.selectors.cartForm);
+		elements.flow.cartContinue = document.querySelector(config.selectors.cartContinue);
+		elements.flow.cartBack = document.querySelector(config.selectors.cartBack);
+		elements.flow.cartEnd = document.querySelector(config.selectors.cartEnd);
+		elements.flow.submitOrderButton = document.querySelector(config.selectors.submitOrderButton);
+		elements.flow.nameInput = document.querySelector(config.selectors.nameInput);
+		elements.flow.emailInput = document.querySelector(config.selectors.emailInput);
+		elements.flow.phoneInput = document.querySelector(config.selectors.phoneInput);
+		elements.flow.cartNavDots = Array.from(document.querySelectorAll(config.selectors.cartNavDots));
+		elements.flow.navCount = document.querySelector(config.selectors.navCount);
+		elements.flow.cartButton = document.querySelector(config.selectors.cartButton);
+		elements.flow.cartCloseButton = document.querySelector(config.selectors.cartCloseButton);
+		elements.flow.inputFields = Array.from(document.querySelectorAll(config.selectors.inputFields));
+	}
+
+	function goToCartStep(stepIndex) {
+		const targetDot = elements.flow.cartNavDots[stepIndex - 1];
+		if (targetDot !== undefined) {
+			targetDot.click();
+		}
+	}
+
+	function clearNavPulseTimeout() {
+		if (state.ui.navPulseTimeoutId !== null) {
+			clearTimeout(state.ui.navPulseTimeoutId);
+			state.ui.navPulseTimeoutId = null;
+		}
+	}
+
+	function removeNavPulse() {
+		clearNavPulseTimeout();
+		if (elements.flow.navCount !== null) {
+			elements.flow.navCount.classList.remove("pulse");
+		}
+	}
+
+	function pulseNavCount() {
+		if (elements.flow.navCount === null) {
+			return;
+		}
+
+		clearNavPulseTimeout();
+		elements.flow.navCount.classList.add("pulse");
+		state.ui.navPulseTimeoutId = setTimeout(() => {
+			if (elements.flow.navCount !== null) {
+				elements.flow.navCount.classList.remove("pulse");
+			}
+			state.ui.navPulseTimeoutId = null;
+		}, 10000);
+	}
+
+	function syncInputFieldError(inputField) {
+		if (inputField === null) {
+			return;
+		}
+
+		const errorElement = inputField.nextElementSibling;
+		if (errorElement === null) {
+			return;
+		}
+
+		errorElement.style.display = inputField.value.trim() === "" ? "block" : "none";
+	}
+
+	function getHasCartItems() {
+		return Object.keys(state.cart.items).length > 0;
+	}
+
+	function syncFlowState(shouldPulseOnLoad) {
+		const hasCartItems = getHasCartItems();
+		const isNameFilled = elements.flow.nameInput !== null && elements.flow.nameInput.value.trim() !== "";
+		const isEmailFilled = elements.flow.emailInput !== null && elements.flow.emailInput.value.trim() !== "";
+		const isPhoneFilled = elements.flow.phoneInput !== null && elements.flow.phoneInput.value.trim() !== "";
+
+		if (elements.flow.submitOrderButton !== null) {
+			elements.flow.submitOrderButton.disabled = !(isNameFilled && isEmailFilled && isPhoneFilled && hasCartItems);
+		}
+
+		if (shouldPulseOnLoad === true) {
+			if (hasCartItems) {
+				pulseNavCount();
+			} else {
+				removeNavPulse();
+			}
+			return;
+		}
+
+		if (hasCartItems === false) {
+			removeNavPulse();
+		}
+	}
+
+	function resetCartAfterSubmit() {
+		localStorage.setItem("cart", JSON.stringify(createEmptyCart()));
+		removeNavPulse();
+	}
+
+	function bindFlowEvents() {
+		if (elements.flow.cartContinue !== null) {
+			elements.flow.cartContinue.addEventListener("click", (event) => {
+				event.preventDefault();
+				goToCartStep(2);
+			});
+		}
+
+		if (elements.flow.cartBack !== null) {
+			elements.flow.cartBack.addEventListener("click", (event) => {
+				event.preventDefault();
+				goToCartStep(1);
+			});
+		}
+
+		if (elements.flow.cartEnd !== null) {
+			elements.flow.cartEnd.addEventListener("click", (event) => {
+				event.preventDefault();
+				if (elements.flow.cartCloseButton !== null) {
+					elements.flow.cartCloseButton.click();
+				}
+				window.location.reload();
+			});
+		}
+
+		elements.flow.inputFields.forEach((inputField) => {
+			syncInputFieldError(inputField);
+			inputField.addEventListener("blur", () => {
+				syncInputFieldError(inputField);
+			});
+			inputField.addEventListener("input", () => {
+				syncInputFieldError(inputField);
+				syncFlowState(false);
+			});
+		});
+
+		if (elements.flow.cartForm !== null) {
+			elements.flow.cartForm.addEventListener("submit", () => {
+				syncFlowState(false);
+				goToCartStep(3);
+				resetCartAfterSubmit();
+			});
+		}
+
+		if (elements.flow.cartButton !== null) {
+			elements.flow.cartButton.addEventListener("click", () => {
+				removeNavPulse();
+			});
+		}
 	}
 
 	function extractListingItem(itemContainer) {
@@ -434,6 +622,7 @@ function runINIT() {
 			config.totalPriceBeforeText + formatPrice(calculateTotalPrice()) + config.totalPriceAfterText;
 		elements.cartJson.value = JSON.stringify(serializeCartItems());
 		updatePopupAmount();
+		syncFlowState(false);
 	}
 
 	function formatPrice(price) {

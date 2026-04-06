@@ -5,6 +5,7 @@
 
   window.__bwcWinesListViewRegistered = true;
 
+  const WINES_LIST_VIEW_VERSION = "v1.1.2";
   const PAGE_PATH = "/the-wines-list-view-test";
   const WEBFLOW_PAGINATION_PAGE_SIZE = 100;
   const LOADER_HIDE_AFTER_ITEM_COUNT = WEBFLOW_PAGINATION_PAGE_SIZE;
@@ -41,6 +42,9 @@
       hasSelectAllOption: true,
     },
   ];
+
+  console.log("[bwc] wines-list-view.js loaded", WINES_LIST_VIEW_VERSION);
+
   const VIEW_SELECTORS = [
     ".cat-sep-wrap",
     ".wines-list-wrap",
