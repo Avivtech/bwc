@@ -11,7 +11,7 @@
   const FALLBACK_PAGES_PER_BATCH = 1;
   const DOMAIN_SORT_COLLATOR = new Intl.Collator("fr", { sensitivity: "base" });
   const WINES_LOADED_TEXT_DEFAULT = "WINES";
-  const WINES_LOADED_TEXT_LOADING = "WINES (Loading...)";
+  const WINES_LOADED_TEXT_LOADING = "Loading all Wines";
   const DEFAULT_CATEGORY_ORDER = [
     "אדום",
     "לבן",
