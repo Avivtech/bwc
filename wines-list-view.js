@@ -63,7 +63,7 @@
 
   const state = {
     activeFilters: createEmptyFilters(),
-    currentView: "list",
+    currentView: "cards",
     currentPage: 0,
     filterCallbacks: [],
     filterControls: [],
@@ -341,7 +341,7 @@
       return;
     }
 
-    state.currentView = cardsView.classList.contains("current") ? "cards" : "list";
+    state.currentView = "cards";
 
     function applyView(view) {
       const nextView = view === "cards" ? "cards" : "list";
