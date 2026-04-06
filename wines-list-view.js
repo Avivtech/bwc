@@ -12,7 +12,6 @@
   const FALLBACK_PAGES_PER_BATCH = 1;
   const DOMAIN_SORT_COLLATOR = new Intl.Collator("fr", { sensitivity: "base" });
   const WINES_LOADED_TEXT_DEFAULT = "WINES";
-  const WINES_LOADED_TEXT_LOADING = "Loading...";
   const DEFAULT_CATEGORY_ORDER = [
     "אדום",
     "לבן",
@@ -891,7 +890,8 @@
       }
     }
 
-    function sortDomains() {
+    function sortDomains(options) {
+      const settings = options || {};
       const container = $(".domaine-list.w-dyn-items");
       if (!container) {
         return;
@@ -925,17 +925,17 @@
       updateArrowDirection();
 
       if (typeof state.updatePagination === "function") {
-        state.updatePagination({ resetPage: false });
+        state.updatePagination({ resetPage: Boolean(settings.resetPage) });
       }
     }
 
     sortTrigger.addEventListener("click", function (event) {
       event.preventDefault();
       state.sortAscending = !state.sortAscending;
-      sortDomains();
+      sortDomains({ resetPage: true });
     });
 
-    sortDomains();
+    sortDomains({ resetPage: false });
   }
 
   function buildFilterControls() {
@@ -1561,14 +1561,32 @@
     return document.querySelector('.wine-list[fs-list-element="list"], .wine-list.w-dyn-items');
   }
 
-  function setWinesLoadedText(isLoading) {
+  function setVisibleWineCountLoadingState(isLoading) {
+    $$(".wine-visible-count-target").forEach(function (element) {
+      element.style.display = isLoading ? "none" : "";
+    });
+  }
+
+  function setWinesLoadedText(isLoading, loadedCount, totalLabel) {
     const label = document.getElementById("winesLoadedTxt");
+
+    setVisibleWineCountLoadingState(isLoading);
 
     if (!label) {
       return;
     }
 
-    label.textContent = isLoading ? WINES_LOADED_TEXT_LOADING : WINES_LOADED_TEXT_DEFAULT;
+    if (isLoading) {
+      if (Number.isFinite(loadedCount) && totalLabel) {
+        label.textContent = "Loading " + loadedCount + " of " + totalLabel;
+        return;
+      }
+
+      label.textContent = "Loading...";
+      return;
+    }
+
+    label.textContent = WINES_LOADED_TEXT_DEFAULT;
   }
 
   function getPaginationInfo(rootDocument) {
@@ -1615,8 +1633,6 @@
     }
 
     manualLoadPromise = (async function () {
-      setWinesLoadedText(true);
-
       const parser = new DOMParser();
       const deferredItems = [];
       const seenSlugs = new Set(
@@ -1626,6 +1642,8 @@
           })
           .filter(Boolean),
       );
+      const totalCountLabel = Math.max((pagination.totalPages - 1) * WEBFLOW_PAGINATION_PAGE_SIZE, seenSlugs.size) + "+";
+      setWinesLoadedText(true, seenSlugs.size, totalCountLabel);
       const nextPageUrl = new URL(pagination.nextUrl);
       const pageParamName = Array.from(nextPageUrl.searchParams.keys()).find(function (key) {
         return key.endsWith("_page");
@@ -1682,6 +1700,8 @@
 
             wineList.appendChild(item);
           });
+
+          setWinesLoadedText(true, seenSlugs.size, totalCountLabel);
         }
       }
 
