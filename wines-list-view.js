@@ -1,9 +1,9 @@
 (function () {
-  if (window.__bwcWinesListViewBooted) {
+  if (window.__bwcWinesListViewRegistered) {
     return;
   }
 
-  window.__bwcWinesListViewBooted = true;
+  window.__bwcWinesListViewRegistered = true;
 
   const PAGE_PATH = "/the-wines-list-view-test";
   const DEFAULT_CATEGORY_ORDER = [
@@ -1290,6 +1290,12 @@
     if (window.location.pathname !== PAGE_PATH) {
       return;
     }
+
+    if (window.__bwcWinesListViewBooted) {
+      return;
+    }
+
+    window.__bwcWinesListViewBooted = true;
 
     injectStyles();
     initLoader();
