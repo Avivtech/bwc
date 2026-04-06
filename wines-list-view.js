@@ -11,7 +11,7 @@
   const FALLBACK_PAGES_PER_BATCH = 1;
   const DOMAIN_SORT_COLLATOR = new Intl.Collator("fr", { sensitivity: "base" });
   const WINES_LOADED_TEXT_DEFAULT = "WINES";
-  const WINES_LOADED_TEXT_LOADING = "Loading all Wines";
+  const WINES_LOADED_TEXT_LOADING = "Loading...";
   const DEFAULT_CATEGORY_ORDER = [
     "אדום",
     "לבן",
@@ -122,6 +122,26 @@
 
   function getWineItemName(item) {
     return normalizeText($(".wine-name", item) && $(".wine-name", item).textContent);
+  }
+
+  function formatDisplayPriceText(value) {
+    const normalizedValue = normalizeText(value);
+
+    if (normalizedValue === "") {
+      return normalizedValue;
+    }
+
+    const parts = normalizedValue.split(".");
+    const wholePart = parts[0].replace(/\s+/g, "");
+    const decimalPart = parts.length > 1 ? "." + parts.slice(1).join(".") : "";
+
+    return wholePart.replace(/(\d)(?=(\d{3})+$)/g, "$1 ") + decimalPart;
+  }
+
+  function formatWineDisplayPrices(root) {
+    $$(".wine-display-price", root).forEach(function (element) {
+      element.textContent = formatDisplayPriceText(element.textContent);
+    });
   }
 
   function clamp(value, min, max) {
@@ -651,6 +671,7 @@
         await nextFrame();
       }
 
+      formatWineDisplayPrices(item);
       targetLocation.appendChild(item);
       lastDomainKey = domainKey;
       appendedCount += 1;
@@ -1515,6 +1536,7 @@
     sortDomainFilterOptions();
     splitItemsIntoDomains();
     initWineType();
+    formatWineDisplayPrices(document);
     collectWineEntries();
     removeUnusedYears();
     state.activeFilters = parseActiveFilters();
