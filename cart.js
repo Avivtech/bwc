@@ -1,8 +1,8 @@
 function runINIT() {
 	const config = {
 		text: {
-			itemInCart: "נמצא בסל",
-			itemNotInCart: "+ הוסף לסל",
+			itemInCart: "נמצא בסל", // Hebrew for "In Cart"
+			itemNotInCart: "+ הוסף לסל", // Hebrew for "+ Add to Cart"
 		},
 		classes: {
 			items: "add-item",
