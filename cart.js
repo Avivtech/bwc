@@ -1,8 +1,8 @@
 function runINIT() {
 	const config = {
 		text: {
-			itemInCart: "× ×ž×¦× ×‘×¡×œ",
-			itemNotInCart: "+ ×”×•×¡×£ ×œ×¡×œ",
+			itemInCart: "נמצא בסל",
+			itemNotInCart: "+ הוסף לסל",
 		},
 		classes: {
 			items: "add-item",
