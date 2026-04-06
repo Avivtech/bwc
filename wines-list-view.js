@@ -1245,6 +1245,35 @@
     }
   }
 
+  function initMobileFilterRelay() {
+    const toggle = document.querySelector(".filters-m-toggle");
+    const continueButton = document.querySelector(".m-continue");
+    const closeButton = document.querySelector(".filter-close");
+    const dropdown = document.getElementById("wineFiltersDrop");
+
+    if (!toggle || !dropdown) {
+      return;
+    }
+
+    function closeMobileFilters(event) {
+      if (event) {
+        event.preventDefault();
+      }
+
+      if (dropdown.classList.contains("w--open")) {
+        toggle.click();
+      }
+    }
+
+    if (continueButton) {
+      continueButton.addEventListener("click", closeMobileFilters);
+    }
+
+    if (closeButton) {
+      closeButton.addEventListener("click", closeMobileFilters);
+    }
+  }
+
   function neutralizeDuplicateCartInit() {
     if (
       typeof window.runINIT === "function" &&
@@ -1276,6 +1305,7 @@
     initPagination();
     initFilters();
     initSearchUi();
+    initMobileFilterRelay();
     initWineSort();
     refreshLastItemBorders();
   }
