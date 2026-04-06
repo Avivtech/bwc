@@ -40,7 +40,7 @@
 const priceElements = document.querySelectorAll('.wine-display-price');
 Array.prototype.forEach.call(priceElements, function (element) {
     const existingValue = element.textContent;
-    const newValue = String(existingValue).replace(/(.)(?=(\d{3})+$)/g, '$1 ');
+    const newValue = String(existingValue).replace(/(\d)(?=(\d{3})+$)/g, '$1 ');
     element.textContent = newValue;
 });
 
@@ -82,7 +82,7 @@ function getCookie(name) {
 }
 
 function eraseCookie(name) {
-    document.cookie = name + '=; Path=/; Expires = Thu, 01 Jan 1970 00:00:01 GMT;';
+    document.cookie = name + '=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
 }
 
 function cta() {

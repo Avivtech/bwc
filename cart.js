@@ -238,7 +238,6 @@ function runINIT() {
 		elements.cartJson = document.getElementById(config.ids.cartJson);
 		if (elements.cartJson === null) {
 			console.error("config.cartJsonId Not found");
-			alert("config.cartJsonId Not found");
 			return false;
 		}
 
@@ -431,15 +430,27 @@ function runINIT() {
 	function renderCartSummary() {
 		saveCart();
 		elements.cartCount.textContent = getAmountText();
-		elements.cartTotalPrice.textContent = config.totalPriceBeforeText + calculateTotalPrice() + config.totalPriceAfterText;
+		elements.cartTotalPrice.textContent =
+			config.totalPriceBeforeText + formatPrice(calculateTotalPrice()) + config.totalPriceAfterText;
 		elements.cartJson.value = JSON.stringify(serializeCartItems());
 		updatePopupAmount();
 	}
 
+	function formatPrice(price) {
+		const roundedPrice = Math.round(Number(price) * 100) / 100;
+		const parts = roundedPrice.toFixed(2).split(".");
+
+		parts[0] = parts[0].replace(/(\d)(?=(\d{3})+$)/g, "$1 ");
+
+		return parts[1] === "00" ? parts[0] : parts.join(".");
+	}
+
 	function calculateTotalPrice() {
-		return Object.values(state.cart.items).reduce((totalPrice, item) => {
+		const totalPrice = Object.values(state.cart.items).reduce((totalPrice, item) => {
 			return totalPrice + item.price * item.quantity;
 		}, 0);
+
+		return Math.round(totalPrice * 100) / 100;
 	}
 
 	function getItemAmount() {
