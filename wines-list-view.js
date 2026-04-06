@@ -5,7 +5,6 @@
 
   window.__bwcWinesListViewRegistered = true;
 
-  const WINES_LIST_VIEW_VERSION = "v1.1.2";
   const PAGE_PATH = "/the-wines-list-view-test";
   const WEBFLOW_PAGINATION_PAGE_SIZE = 100;
   const LOADER_HIDE_AFTER_ITEM_COUNT = WEBFLOW_PAGINATION_PAGE_SIZE;
@@ -41,8 +40,6 @@
       hasSelectAllOption: true,
     },
   ];
-
-  console.log("[bwc] wines-list-view.js loaded", WINES_LIST_VIEW_VERSION);
 
   const VIEW_SELECTORS = [
     ".cat-sep-wrap",
@@ -1272,7 +1269,9 @@
     const linkTemplate = templateLink.cloneNode(true);
 
     function buildGroups() {
+      const domainContainer = $(".domaine-list.w-dyn-items");
       const domainsByKey = new Map();
+      const domainsByWrapper = new Map();
       const childrenByParent = new Map();
 
       state.domains.forEach(function (domain) {
@@ -1281,6 +1280,7 @@
         }
 
         domainsByKey.set(domain.nameKey, domain);
+        domainsByWrapper.set(domain.wrapper, domain);
       });
 
       state.domains.forEach(function (domain) {
@@ -1295,9 +1295,19 @@
         childrenByParent.get(domain.parentKey).push(domain);
       });
 
-      return state.domains
+      const orderedDomains = domainContainer
+        ? $$(".domaine-item.w-dyn-item", domainContainer)
+            .map(function (wrapper) {
+              return domainsByWrapper.get(wrapper);
+            })
+            .filter(Boolean)
+        : state.domains.filter(function (domain) {
+            return domain.wrapper.isConnected;
+          });
+
+      return orderedDomains
         .filter(function (domain) {
-          return domain.wrapper.isConnected && (!domain.parentKey || !domainsByKey.has(domain.parentKey));
+          return !domain.parentKey || !domainsByKey.has(domain.parentKey);
         })
         .map(function (domain) {
           return {

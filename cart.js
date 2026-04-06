@@ -1,6 +1,7 @@
-const CART_SCRIPT_VERSION = "v1.1.2";
+const BWC_VERSION = "v1.1.3";
 
-console.log("[bwc] cart.js loaded", CART_SCRIPT_VERSION);
+window.__BWC_VERSION__ = BWC_VERSION;
+console.log("[bwc] version", BWC_VERSION);
 
 function runINIT() {
 	const config = {

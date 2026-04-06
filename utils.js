@@ -1,8 +1,4 @@
-﻿const UTILS_SCRIPT_VERSION = 'v1.1.2';
-
-console.log('[bwc] utils.js loaded', UTILS_SCRIPT_VERSION);
-
-// START change "er" to superscript
+﻿// START change "er" to superscript
 {
     const config = {
         selectors: [
