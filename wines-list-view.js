@@ -113,21 +113,25 @@
     .bwc-domain-skeleton-content {
       display: grid;
       gap: 18px;
+      min-width: 0;
     }
 
     .bwc-domain-skeleton-line {
       height: 18px;
       border-radius: 999px;
+      max-width: 100%;
     }
 
     .bwc-domain-skeleton-line.is-domain {
-      width: min(360px, 72%);
+      width: min(100%, var(--bwc-skeleton-domain-width, 72%));
+      max-width: 360px;
       height: 20px;
       letter-spacing: 0.35em;
     }
 
     .bwc-domain-skeleton-line.is-title {
-      width: min(310px, 58%);
+      width: min(100%, var(--bwc-skeleton-title-width, 58%));
+      max-width: 310px;
       height: 44px;
       border-radius: 10px;
     }
@@ -142,10 +146,11 @@
       display: flex;
       align-items: center;
       gap: 20px;
+      min-width: 0;
     }
 
     .bwc-domain-skeleton-line.is-year {
-      width: 96px;
+      width: min(100%, var(--bwc-skeleton-year-width, 96px));
     }
 
     .bwc-domain-skeleton-line.is-sep {
@@ -157,7 +162,7 @@
     }
 
     .bwc-domain-skeleton-line.is-cat {
-      width: 68px;
+      width: min(100%, var(--bwc-skeleton-cat-width, 68px));
     }
 
     .bwc-domain-skeleton-footer {
@@ -166,18 +171,31 @@
       justify-content: space-between;
       gap: 24px;
       padding-top: 18px;
+      min-width: 0;
     }
 
     .bwc-domain-skeleton-line.is-price {
-      width: 126px;
+      width: min(100%, var(--bwc-skeleton-price-width, 126px));
       height: 38px;
       border-radius: 10px;
+      flex: 0 1 auto;
     }
 
     .bwc-domain-skeleton-line.is-cta {
-      width: 180px;
+      width: min(100%, var(--bwc-skeleton-cta-width, 180px));
       height: 28px;
       border-radius: 999px;
+      flex: 0 1 auto;
+      margin-inline-start: auto;
+    }
+
+    .bwc-domain-skeleton-card.is-secondary {
+      --bwc-skeleton-domain-width: 64%;
+      --bwc-skeleton-title-width: 49%;
+      --bwc-skeleton-year-width: 82px;
+      --bwc-skeleton-cat-width: 56px;
+      --bwc-skeleton-price-width: 112px;
+      --bwc-skeleton-cta-width: 156px;
     }
 
     @keyframes bwcDomainSkeleton {
@@ -208,6 +226,17 @@
       .bwc-domain-skeleton-footer {
         flex-direction: column;
         align-items: flex-start;
+      }
+
+      .bwc-domain-skeleton-line.is-domain,
+      .bwc-domain-skeleton-line.is-title,
+      .bwc-domain-skeleton-line.is-price,
+      .bwc-domain-skeleton-line.is-cta {
+        max-width: 100%;
+      }
+
+      .bwc-domain-skeleton-line.is-cta {
+        margin-inline-start: 0;
       }
 
       .sort-sticky {
@@ -803,10 +832,28 @@
       '<div class="bwc-domain-skeleton-line is-cta"></div>' +
       '</div>' +
       '</div>' +
+      '</div>' +
+      '<div class="bwc-domain-skeleton-card is-secondary">' +
+      '<div class="bwc-domain-skeleton-media"></div>' +
+      '<div class="bwc-domain-skeleton-content">' +
+      '<div class="bwc-domain-skeleton-line is-domain"></div>' +
+      '<div class="bwc-domain-skeleton-line is-title"></div>' +
+      '<div class="bwc-domain-skeleton-divider"></div>' +
+      '<div class="bwc-domain-skeleton-meta">' +
+      '<div class="bwc-domain-skeleton-line is-year"></div>' +
+      '<div class="bwc-domain-skeleton-line is-sep"></div>' +
+      '<div class="bwc-domain-skeleton-line is-cat"></div>' +
+      '</div>' +
+      '<div class="bwc-domain-skeleton-divider"></div>' +
+      '<div class="bwc-domain-skeleton-footer">' +
+      '<div class="bwc-domain-skeleton-line is-price"></div>' +
+      '<div class="bwc-domain-skeleton-line is-cta"></div>' +
+      '</div>' +
+      '</div>' +
       '</div>';
     const skeleton = document.createElement("div");
     skeleton.className = "bwc-domain-skeleton";
-    skeleton.innerHTML = skeletonCard + skeletonCard;
+    skeleton.innerHTML = skeletonCard;
     return skeleton;
   }
 

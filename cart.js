@@ -1,4 +1,4 @@
-const BWC_VERSION = "v1.1.7";
+const BWC_VERSION = "v1.1.8";
 
 window.__BWC_VERSION__ = BWC_VERSION;
 console.log("[bwc] version", BWC_VERSION);
