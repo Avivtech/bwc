@@ -43,6 +43,8 @@ function runINIT() {
 			cartContinue: "#cartCont",
 			cartBack: "#cartBack",
 			cartEnd: "#cartEnd",
+			cartSliderNext: "#cartNav .w-slider-arrow-right",
+			cartSliderPrevious: "#cartNav .w-slider-arrow-left",
 			submitOrderButton: "#submitOrderBtn",
 			nameInput: "#name",
 			emailInput: "#email",
@@ -304,9 +306,26 @@ function runINIT() {
 	}
 
 	function goToCartStep(stepIndex) {
-		const targetDot = elements.flow.cartNavDots[stepIndex - 1];
+		const cartNavDots = Array.from(document.querySelectorAll(config.selectors.cartNavDots));
+		const targetDot = cartNavDots[stepIndex - 1];
 		if (targetDot !== undefined) {
 			targetDot.click();
+			return;
+		}
+
+		if (stepIndex > 1) {
+			const nextArrow = document.querySelector(config.selectors.cartSliderNext);
+			if (nextArrow !== null) {
+				nextArrow.click();
+			}
+			return;
+		}
+
+		if (stepIndex <= 1) {
+			const previousArrow = document.querySelector(config.selectors.cartSliderPrevious);
+			if (previousArrow !== null) {
+				previousArrow.click();
+			}
 		}
 	}
 
@@ -386,29 +405,42 @@ function runINIT() {
 	}
 
 	function bindFlowEvents() {
-		if (elements.flow.cartContinue !== null) {
-			elements.flow.cartContinue.addEventListener("click", (event) => {
+		if (document.body !== null && document.body.dataset.bwcFlowDelegatedBound === "true") {
+			return;
+		}
+		if (document.body !== null) {
+			document.body.dataset.bwcFlowDelegatedBound = "true";
+		}
+
+		document.addEventListener("click", (event) => {
+			const clickedElement = event.target instanceof Element ? event.target : null;
+			if (clickedElement === null) {
+				return;
+			}
+
+			const continueButton = clickedElement.closest(config.selectors.cartContinue);
+			if (continueButton !== null) {
 				event.preventDefault();
 				goToCartStep(2);
-			});
-		}
+				return;
+			}
 
-		if (elements.flow.cartBack !== null) {
-			elements.flow.cartBack.addEventListener("click", (event) => {
+			const backButton = clickedElement.closest(config.selectors.cartBack);
+			if (backButton !== null) {
 				event.preventDefault();
 				goToCartStep(1);
-			});
-		}
+				return;
+			}
 
-		if (elements.flow.cartEnd !== null) {
-			elements.flow.cartEnd.addEventListener("click", (event) => {
+			const endButton = clickedElement.closest(config.selectors.cartEnd);
+			if (endButton !== null) {
 				event.preventDefault();
 				if (elements.flow.cartCloseButton !== null) {
 					elements.flow.cartCloseButton.click();
 				}
 				window.location.reload();
-			});
-		}
+			}
+		});
 
 		elements.flow.inputFields.forEach((inputField) => {
 			syncInputFieldError(inputField);
