@@ -43,6 +43,7 @@ function runINIT() {
 			cartContinue: "#cartCont",
 			cartBack: "#cartBack",
 			cartEnd: "#cartEnd",
+			cartContainer: "#cartContainer",
 			cartSliderNext: "#cartNav .w-slider-arrow-right",
 			cartSliderPrevious: "#cartNav .w-slider-arrow-left",
 			submitOrderButton: "#submitOrderBtn",
@@ -405,44 +406,54 @@ function runINIT() {
 	}
 
 	function bindFlowEvents() {
-		if (document.body !== null && document.body.dataset.bwcFlowDelegatedBound === "true") {
-			return;
-		}
-		if (document.body !== null) {
+		if (document.body !== null && document.body.dataset.bwcFlowDelegatedBound !== "true") {
 			document.body.dataset.bwcFlowDelegatedBound = "true";
+			document.addEventListener("click", (event) => {
+				const clickedElement = event.target instanceof Element ? event.target : null;
+				if (clickedElement === null) {
+					return;
+				}
+
+				const continueButton = clickedElement.closest(config.selectors.cartContinue);
+				if (continueButton !== null) {
+					event.preventDefault();
+					goToCartStep(2);
+					return;
+				}
+
+				const backButton = clickedElement.closest(config.selectors.cartBack);
+				if (backButton !== null) {
+					event.preventDefault();
+					goToCartStep(1);
+					return;
+				}
+
+				const endButton = clickedElement.closest(config.selectors.cartEnd);
+				if (endButton !== null) {
+					event.preventDefault();
+					if (elements.flow.cartCloseButton !== null) {
+						elements.flow.cartCloseButton.click();
+					}
+					window.location.reload();
+				}
+			});
 		}
 
-		document.addEventListener("click", (event) => {
-			const clickedElement = event.target instanceof Element ? event.target : null;
-			if (clickedElement === null) {
-				return;
-			}
-
-			const continueButton = clickedElement.closest(config.selectors.cartContinue);
-			if (continueButton !== null) {
-				event.preventDefault();
-				goToCartStep(2);
-				return;
-			}
-
-			const backButton = clickedElement.closest(config.selectors.cartBack);
-			if (backButton !== null) {
-				event.preventDefault();
-				goToCartStep(1);
-				return;
-			}
-
-			const endButton = clickedElement.closest(config.selectors.cartEnd);
-			if (endButton !== null) {
-				event.preventDefault();
-				if (elements.flow.cartCloseButton !== null) {
-					elements.flow.cartCloseButton.click();
-				}
-				window.location.reload();
-			}
-		});
+		const flowCartContainer = document.querySelector(config.selectors.cartContainer);
+		if (flowCartContainer !== null && flowCartContainer.dataset.bwcFlowObserverBound !== "true") {
+			flowCartContainer.dataset.bwcFlowObserverBound = "true";
+			const observer = new MutationObserver(() => {
+				syncFlowState(false);
+			});
+			observer.observe(flowCartContainer, { childList: true });
+		}
 
 		elements.flow.inputFields.forEach((inputField) => {
+			if (inputField.dataset.bwcFlowInputBound === "true") {
+				return;
+			}
+			inputField.dataset.bwcFlowInputBound = "true";
+
 			syncInputFieldError(inputField);
 			inputField.addEventListener("blur", () => {
 				syncInputFieldError(inputField);
@@ -453,7 +464,8 @@ function runINIT() {
 			});
 		});
 
-		if (elements.flow.cartForm !== null) {
+		if (elements.flow.cartForm !== null && elements.flow.cartForm.dataset.bwcFlowSubmitBound !== "true") {
+			elements.flow.cartForm.dataset.bwcFlowSubmitBound = "true";
 			elements.flow.cartForm.addEventListener("submit", () => {
 				syncFlowState(false);
 				goToCartStep(3);
@@ -461,7 +473,8 @@ function runINIT() {
 			});
 		}
 
-		if (elements.flow.cartButton !== null) {
+		if (elements.flow.cartButton !== null && elements.flow.cartButton.dataset.bwcFlowCartButtonBound !== "true") {
+			elements.flow.cartButton.dataset.bwcFlowCartButtonBound = "true";
 			elements.flow.cartButton.addEventListener("click", () => {
 				removeNavPulse();
 			});
