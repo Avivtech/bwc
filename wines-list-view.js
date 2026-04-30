@@ -9,6 +9,8 @@
   const WEBFLOW_PAGINATION_PAGE_SIZE = 100;
   const LOADER_HIDE_AFTER_ITEM_COUNT = WEBFLOW_PAGINATION_PAGE_SIZE;
   const FALLBACK_PAGES_PER_BATCH = 1;
+  const WINE_LIST_SELECTOR = '.wine-list[fs-list-element="list"], .wine-list.w-dyn-items';
+  const WINE_ITEM_SELECTOR = ".wine-item.w-dyn-item";
   const DOMAIN_SORT_COLLATOR = new Intl.Collator("fr", { sensitivity: "base" });
   const WINES_LOADED_TEXT_DEFAULT = "WINES";
   const DEFAULT_CATEGORY_ORDER = [
@@ -302,6 +304,10 @@
     return normalizeText($(".wine-name", item) && $(".wine-name", item).textContent);
   }
 
+  function getWineItemSlug(item) {
+    return normalizeText($(".slug.w-embed", item) && $(".slug.w-embed", item).textContent);
+  }
+
   function formatDisplayPriceText(value) {
     const normalizedValue = normalizeText(value);
 
@@ -454,7 +460,7 @@
     if (hasActiveFilters()) {
       nextUrl.searchParams.set("active", JSON.stringify(serializeActiveFilters()));
     } else {
-      nextUrl.searchParams.set("active", "");
+      nextUrl.searchParams.delete("active");
     }
 
     window.history.replaceState(null, "", nextUrl);
@@ -1052,7 +1058,7 @@
       const category = normalizeText($(".wine-cat", item) && $(".wine-cat", item).textContent);
       const subRegion = normalizeText($(".sub-region", item) && $(".sub-region", item).textContent);
       const name = normalizeText($(".wine-name", item) && $(".wine-name", item).textContent);
-      const slug = normalizeText($(".slug.w-embed", item) && $(".slug.w-embed", item).textContent);
+      const slug = getWineItemSlug(item);
       const price = normalizeText($(".wine-display-price", item) && $(".wine-display-price", item).textContent);
       const domainHaystack = [domainName, parentName, domainInject].filter(Boolean).join(" | ");
       const compiledSearch = [year, name, domainHaystack, category, subRegion, slug, price].join(" | ");
@@ -1377,27 +1383,27 @@
         }
       });
 
-    state.domains.forEach(function (domain) {
-      const categoryBlocks = $$(".cat-sep", domain.wrapper);
-      let hasVisibleCategory = false;
-      const hasPendingLoad = domain.wrapper.dataset.pendingLoad === "true";
+      state.domains.forEach(function (domain) {
+        const categoryBlocks = $$(".cat-sep", domain.wrapper);
+        let hasVisibleCategory = false;
+        const hasPendingLoad = domain.wrapper.dataset.pendingLoad === "true";
 
-      categoryBlocks.forEach(function (block) {
-        const hasVisibleWines = $$(".wine-item", block).some(function (wineItem) {
-          return wineItem.dataset.filterVisible === "true";
-        });
+        categoryBlocks.forEach(function (block) {
+          const hasVisibleWines = $$(".wine-item", block).some(function (wineItem) {
+            return wineItem.dataset.filterVisible === "true";
+          });
 
           block.style.display = hasVisibleWines ? "" : "none";
           hasVisibleCategory = hasVisibleCategory || hasVisibleWines;
         });
 
-      const shouldKeepPendingDomainVisible = hasPendingLoad && !filtersActive;
-      domain.wrapper.dataset.filterVisible = hasVisibleCategory || shouldKeepPendingDomainVisible ? "true" : "false";
+        const shouldKeepPendingDomainVisible = hasPendingLoad && !filtersActive;
+        domain.wrapper.dataset.filterVisible = hasVisibleCategory || shouldKeepPendingDomainVisible ? "true" : "false";
 
-      if (hasVisibleCategory && domain.parentKey) {
-        visibleChildrenByParent.set(domain.parentKey, true);
-      }
-    });
+        if (hasVisibleCategory && domain.parentKey) {
+          visibleChildrenByParent.set(domain.parentKey, true);
+        }
+      });
 
       state.domains.forEach(function (domain) {
         const showForChildren = !domain.parentKey && visibleChildrenByParent.has(domain.nameKey);
@@ -1527,10 +1533,10 @@
   }
 
   function initPagination() {
-    const arrowLeft = $(".paination-arrow.arrow-left");
-    const arrowRight = $(".paination-arrow.arrow-right");
+    const arrowLeft = $(".paination-arrow.arrow-left, .pagination-arrow.arrow-left");
+    const arrowRight = $(".paination-arrow.arrow-right, .pagination-arrow.arrow-right");
     const paginationContainer = $(".pagination-links-wrap");
-    const paginationFullContainer = $(".pagination-containr");
+    const paginationFullContainer = $(".pagination-containr, .pagination-container");
     const templateLink = $(".pagination-link");
     const emptyState = $(".wine-list-empty-state");
     const pageSize = 10;
@@ -1843,7 +1849,11 @@
   }
 
   function getWineListElement() {
-    return document.querySelector('.wine-list[fs-list-element="list"], .wine-list.w-dyn-items');
+    return document.querySelector(WINE_LIST_SELECTOR);
+  }
+
+  function getWineCollectionScope(wineList) {
+    return (wineList && wineList.closest(".w-dyn-list")) || document;
   }
 
   function setVisibleWineCountLoadingState(isLoading) {
@@ -1883,12 +1893,86 @@
     const currentPage = Number.parseInt(parts[0], 10);
     const totalPages = Number.parseInt(parts[1], 10);
     const nextLink = scope.querySelector(".w-pagination-next");
+    const nextHref = nextLink && nextLink.getAttribute("href");
 
     return {
       currentPage: Number.isFinite(currentPage) ? currentPage : 1,
       totalPages: Number.isFinite(totalPages) ? totalPages : 1,
-      nextUrl: nextLink ? new URL(nextLink.getAttribute("href"), window.location.href).toString() : null,
+      nextUrl: nextHref ? new URL(nextHref, window.location.href).toString() : null,
     };
+  }
+
+  function collectExistingWineSlugs() {
+    return new Set(
+      $$(".wine-item .slug.w-embed")
+        .map(function (element) {
+          return normalizeText(element.textContent);
+        })
+        .filter(Boolean),
+    );
+  }
+
+  function getPaginationPageParamName(nextPageUrl, currentPage) {
+    const keys = Array.from(nextPageUrl.searchParams.keys());
+    const webflowPageParam = keys.find(function (key) {
+      return key.endsWith("_page");
+    });
+
+    if (webflowPageParam) {
+      return webflowPageParam;
+    }
+
+    const expectedNextPage = String(currentPage + 1);
+    const matchingEntry = Array.from(nextPageUrl.searchParams.entries()).find(function (entry) {
+      return entry[1] === expectedNextPage;
+    });
+
+    if (matchingEntry) {
+      return matchingEntry[0];
+    }
+
+    return nextPageUrl.searchParams.has("page") ? "page" : "";
+  }
+
+  function buildWinePageUrls(pagination) {
+    const nextPageUrl = new URL(pagination.nextUrl);
+    const pageParamName = getPaginationPageParamName(nextPageUrl, pagination.currentPage);
+
+    if (!pageParamName) {
+      console.warn("Could not detect the wine pagination page parameter; only loading the next page.");
+      nextPageUrl.searchParams.delete("active");
+      return [nextPageUrl.toString()];
+    }
+
+    const pageUrls = [];
+    for (let pageNumber = pagination.currentPage + 1; pageNumber <= pagination.totalPages; pageNumber += 1) {
+      const pageUrl = new URL(nextPageUrl.href);
+      pageUrl.searchParams.delete("active");
+      pageUrl.searchParams.set(pageParamName, String(pageNumber));
+      pageUrls.push(pageUrl.toString());
+    }
+
+    return pageUrls;
+  }
+
+  function extractUniqueWineItemsFromHtml(html, parser, seenSlugs) {
+    const nextDocument = parser.parseFromString(html, "text/html");
+    const nextWineList = nextDocument.querySelector(WINE_LIST_SELECTOR);
+
+    if (!nextWineList) {
+      return [];
+    }
+
+    return $$(WINE_ITEM_SELECTOR, nextWineList).filter(function (item) {
+      const slug = getWineItemSlug(item);
+
+      if (!slug || seenSlugs.has(slug)) {
+        return false;
+      }
+
+      seenSlugs.add(slug);
+      return true;
+    });
   }
 
   function finalizeLoadedWinePages() {
@@ -1911,7 +1995,7 @@
     }
 
     const wineList = getWineListElement();
-    const pagination = getPaginationInfo();
+    const pagination = getPaginationInfo(getWineCollectionScope(wineList));
 
     if (!wineList || pagination.totalPages <= 1 || !pagination.nextUrl || pagination.currentPage >= pagination.totalPages) {
       setWinesLoadedText(false);
@@ -1920,35 +2004,11 @@
 
     manualLoadPromise = (async function () {
       const parser = new DOMParser();
-      const deferredItems = [];
-      const seenSlugs = new Set(
-        $$(".wine-item .slug.w-embed")
-          .map(function (element) {
-            return normalizeText(element.textContent);
-          })
-          .filter(Boolean),
-      );
+      const seenSlugs = collectExistingWineSlugs();
       const totalCountLabel = Math.max((pagination.totalPages - 1) * WEBFLOW_PAGINATION_PAGE_SIZE, seenSlugs.size) + "+";
+      const pageUrls = buildWinePageUrls(pagination);
+
       setWinesLoadedText(true, seenSlugs.size, totalCountLabel);
-      const nextPageUrl = new URL(pagination.nextUrl);
-      const pageParamName = Array.from(nextPageUrl.searchParams.keys()).find(function (key) {
-        return key.endsWith("_page");
-      });
-      const pageUrls = [];
-
-      for (let pageNumber = pagination.currentPage + 1; pageNumber <= pagination.totalPages; pageNumber += 1) {
-        const pageUrl = new URL(window.location.href);
-        pageUrl.search = "";
-        nextPageUrl.searchParams.forEach(function (value, key) {
-          pageUrl.searchParams.set(key, value);
-        });
-
-        if (pageParamName) {
-          pageUrl.searchParams.set(pageParamName, String(pageNumber));
-        }
-
-        pageUrls.push(pageUrl.toString());
-      }
 
       for (let batchStart = 0; batchStart < pageUrls.length; batchStart += FALLBACK_PAGES_PER_BATCH) {
         const batchUrls = pageUrls.slice(batchStart, batchStart + FALLBACK_PAGES_PER_BATCH);
@@ -1965,43 +2025,29 @@
             return response.text();
           }),
         );
+        const loadedItems = [];
 
         pages.forEach(function (html) {
-          const nextDocument = parser.parseFromString(html, "text/html");
-          const nextWineList = nextDocument.querySelector('.wine-list[fs-list-element="list"], .wine-list.w-dyn-items');
-
-          if (!nextWineList) {
-            return;
-          }
-
-          $$(".wine-item.w-dyn-item", nextWineList).forEach(function (item) {
-            const slug = normalizeText($(".slug.w-embed", item) && $(".slug.w-embed", item).textContent);
-
-            if (!slug || seenSlugs.has(slug)) {
-              return;
-            }
-
-            seenSlugs.add(slug);
-
-            if (window.__bwcWinesListViewBooted) {
-              deferredItems.push(item);
-              return;
-            }
-
-            wineList.appendChild(item);
+          extractUniqueWineItemsFromHtml(html, parser, seenSlugs).forEach(function (item) {
+            loadedItems.push(item);
           });
         });
 
+        if (loadedItems.length) {
+          if (window.__bwcWinesListViewBooted) {
+            await appendWineItemsToBootedDom(loadedItems);
+          } else {
+            loadedItems.forEach(function (item) {
+              wineList.appendChild(item);
+            });
+          }
+        }
+
         setWinesLoadedText(true, seenSlugs.size, totalCountLabel);
-      }
-
-      if (window.__bwcWinesListViewBooted && deferredItems.length) {
-        await appendWineItemsToBootedDom(deferredItems);
-      }
-
-      if (getWineItemCount() >= LOADER_HIDE_AFTER_ITEM_COUNT) {
-        await nextFrame();
-        hideLoader();
+        if (getWineItemCount() >= LOADER_HIDE_AFTER_ITEM_COUNT) {
+          await nextFrame();
+          hideLoader();
+        }
       }
     })();
 
@@ -2020,7 +2066,9 @@
     initLoader();
     boot();
     setWinesLoadedText(false);
-    hideLoader();
+    if (getWineItemCount() >= LOADER_HIDE_AFTER_ITEM_COUNT) {
+      hideLoader();
+    }
 
     try {
       await loadAllWinePagesFallback();
