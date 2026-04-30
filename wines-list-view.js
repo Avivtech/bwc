@@ -5,7 +5,6 @@
 
 	window.__bwcWinesListViewRegistered = true;
 
-	const PAGE_PATH = "/the-wines-list";
 	const WEBFLOW_PAGINATION_PAGE_SIZE = 100;
 	const LOADER_HIDE_AFTER_ITEM_COUNT = WEBFLOW_PAGINATION_PAGE_SIZE;
 	const FALLBACK_PAGES_PER_BATCH = 1;
@@ -1785,11 +1784,6 @@
 	}
 
 	function boot() {
-		if (window.location.pathname !== PAGE_PATH) {
-			console.warn("Wine list view script loaded on unexpected page:", window.location.pathname);
-			return;
-		}
-
 		if (window.__bwcWinesListViewBooted) {
 			return;
 		}
@@ -2028,11 +2022,6 @@
 	}
 
 	async function initializePage() {
-		if (window.location.pathname !== PAGE_PATH) {
-			console.warn("Wine list view script loaded on unexpected page:", window.location.pathname);
-			return;
-		}
-
 		if (window.__bwcWinesListViewBooted) {
 			return;
 		}
