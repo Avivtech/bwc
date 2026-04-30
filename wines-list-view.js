@@ -1786,6 +1786,7 @@
 
 	function boot() {
 		if (window.location.pathname !== PAGE_PATH) {
+			console.warn("Wine list view script loaded on unexpected page:", window.location.pathname);
 			return;
 		}
 
