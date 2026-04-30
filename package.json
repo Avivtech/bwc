@@ -1,0 +1,11 @@
+{
+  "private": true,
+  "scripts": {
+    "build:wines": "node scripts/minify-wines.js",
+    "watch:wines": "node scripts/minify-wines.js --watch"
+  },
+  "devDependencies": {
+    "terser": "^5.46.2"
+  }
+}
+
