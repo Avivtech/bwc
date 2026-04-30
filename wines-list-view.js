@@ -2064,7 +2064,6 @@
 			const seenSlugs = collectExistingWineSlugs();
 			const totalCountLabel = Math.max((pagination.totalPages - 1) * WEBFLOW_PAGINATION_PAGE_SIZE, seenSlugs.size) + "+";
 			const pageUrls = buildWinePageUrls(pagination);
-			const loadedItems = [];
 
 			setWinesLoadedText(true, seenSlugs.size, totalCountLabel);
 
@@ -2083,6 +2082,7 @@
 						return response.text();
 					}),
 				);
+				const loadedItems = [];
 
 				pages.forEach(function (html) {
 					extractUniqueWineItemsFromHtml(html, parser, seenSlugs).forEach(function (item) {
@@ -2090,22 +2090,20 @@
 					});
 				});
 
+				if (loadedItems.length) {
+					if (window.__bwcWinesListViewBooted) {
+						await appendWineItemsToBootedDom(loadedItems);
+					} else {
+						loadedItems.slice().sort(compareWineItemsByDomainName).forEach(function (item) {
+							wineList.appendChild(item);
+						});
+					}
+				}
+
 				setWinesLoadedText(true, seenSlugs.size, totalCountLabel);
 				if (getWineItemCount() >= LOADER_HIDE_AFTER_ITEM_COUNT) {
 					await nextFrame();
 					hideLoader();
-				}
-			}
-
-			if (loadedItems.length) {
-				const sortedItems = loadedItems.slice().sort(compareWineItemsByDomainName);
-
-				if (window.__bwcWinesListViewBooted) {
-					await appendWineItemsToBootedDom(sortedItems);
-				} else {
-					sortedItems.forEach(function (item) {
-						wineList.appendChild(item);
-					});
 				}
 			}
 		})();
