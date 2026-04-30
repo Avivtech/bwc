@@ -1676,6 +1676,24 @@
 			arrowRight.classList.toggle("disabled", state.currentPage >= pageCount - 1);
 		}
 
+		function showDomainGroup(group) {
+			const hasVisibleChildren = group.children.some(function (childDomain) {
+				return childDomain.wrapper.dataset.filterVisible === "true";
+			});
+
+			if (group.topLevel.wrapper.dataset.groupVisible === "true") {
+				if (group.topLevel.wrapper.dataset.filterVisible === "true" || hasVisibleChildren) {
+					group.topLevel.wrapper.style.display = "";
+				}
+			}
+
+			group.children.forEach(function (childDomain) {
+				if (childDomain.wrapper.dataset.filterVisible === "true") {
+					childDomain.wrapper.style.display = "";
+				}
+			});
+		}
+
 		function updatePagination(options) {
 			const settings = options || {};
 			const groups = buildGroups().filter(function (group) {
@@ -1714,6 +1732,26 @@
 				renderPaginationLink(index);
 			}
 
+			if (!state.allWinePagesLoaded) {
+				state.domains.forEach(function (domain) {
+					domain.wrapper.style.display = "none";
+				});
+
+				groups.forEach(showDomainGroup);
+				emptyState.style.display = "none";
+				if (paginationFullContainer) {
+					paginationFullContainer.style.display = "none";
+				}
+				updateArrowState(1);
+				refreshLastItemBorders();
+
+				if (typeof window.applyWineView === "function") {
+					window.applyWineView(state.currentView);
+				}
+
+				return;
+			}
+
 			state.domains.forEach(function (domain) {
 				if (domain.wrapper.dataset.groupVisible === "true") {
 					domain.wrapper.style.display = "";
@@ -1728,23 +1766,7 @@
 				domain.wrapper.style.display = "none";
 			});
 
-			groupsOnPage.forEach(function (group) {
-				const hasVisibleChildren = group.children.some(function (childDomain) {
-					return childDomain.wrapper.dataset.filterVisible === "true";
-				});
-
-				if (group.topLevel.wrapper.dataset.groupVisible === "true") {
-					if (group.topLevel.wrapper.dataset.filterVisible === "true" || hasVisibleChildren) {
-						group.topLevel.wrapper.style.display = "";
-					}
-				}
-
-				group.children.forEach(function (childDomain) {
-					if (childDomain.wrapper.dataset.filterVisible === "true") {
-						childDomain.wrapper.style.display = "";
-					}
-				});
-			});
+			groupsOnPage.forEach(showDomainGroup);
 
 			emptyState.style.display = "none";
 			if (paginationFullContainer) {
