@@ -63,6 +63,16 @@
       grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 20px;
       padding: 14px 0 18px;
+      opacity: 1;
+      transform: translateY(0);
+      transition: opacity 280ms ease, transform 280ms ease;
+      will-change: opacity, transform;
+    }
+
+    .bwc-domain-skeleton.is-hiding {
+      opacity: 0;
+      transform: translateY(8px);
+      pointer-events: none;
     }
 
     .bwc-domain-skeleton-card {
@@ -210,6 +220,10 @@
       .bwc-wine-item-enter {
         opacity: 1;
         transform: none;
+        transition: none;
+      }
+
+      .bwc-domain-skeleton {
         transition: none;
       }
     }
@@ -837,7 +851,7 @@
 			});
 
 			applyWineViewClasses(block, state.currentView);
-			container.insertBefore(block, nextBlock || null);
+			container.insertBefore(block, nextBlock || getDomainSkeleton(domain) || null);
 		}
 
 		return $(".wines-list-wrap", block);
@@ -896,8 +910,28 @@
 		return skeleton;
 	}
 
-	function hasLoadedDomainWines(domain) {
-		return Boolean(domain && $(".wine-item", domain.wrapper));
+	function hideAndRemoveDomainSkeleton(skeleton) {
+		if (skeleton.classList.contains("is-hiding")) {
+			return;
+		}
+
+		let fallbackId = null;
+		function cleanup(event) {
+			if (event && event.target !== skeleton) {
+				return;
+			}
+
+			if (fallbackId !== null) {
+				window.clearTimeout(fallbackId);
+			}
+
+			skeleton.removeEventListener("transitionend", cleanup);
+			skeleton.remove();
+		}
+
+		skeleton.addEventListener("transitionend", cleanup);
+		fallbackId = window.setTimeout(cleanup, 380);
+		skeleton.classList.add("is-hiding");
 	}
 
 	function syncDomainSkeleton(domain) {
@@ -907,17 +941,21 @@
 		}
 
 		const skeleton = getDomainSkeleton(domain);
-		const shouldShowSkeleton = !state.allWinePagesLoaded && !hasLoadedDomainWines(domain);
 
-		if (!shouldShowSkeleton) {
+		if (state.allWinePagesLoaded) {
 			if (skeleton) {
-				skeleton.remove();
+				hideAndRemoveDomainSkeleton(skeleton);
 			}
 			domain.wrapper.dataset.pendingLoad = "false";
 			return;
 		}
 
-		if (!skeleton) {
+		if (skeleton) {
+			skeleton.classList.remove("is-hiding");
+			if (skeleton.nextSibling) {
+				container.appendChild(skeleton);
+			}
+		} else {
 			container.appendChild(createDomainSkeleton());
 		}
 
