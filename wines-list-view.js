@@ -270,6 +270,17 @@
 		return Array.from((root || document).querySelectorAll(selector));
 	}
 
+	function getElementsMatchingSelector(selector, root) {
+		const scope = root || document;
+		const elements = $$(selector, scope);
+
+		if (scope.nodeType === 1 && scope.matches(selector)) {
+			elements.unshift(scope);
+		}
+
+		return elements;
+	}
+
 	function normalizeText(value) {
 		return String(value || "")
 			.replace(/\s+/g, " ")
@@ -301,6 +312,16 @@
 		}
 
 		return DOMAIN_SORT_COLLATOR.compare(getWineItemName(leftItem), getWineItemName(rightItem));
+	}
+
+	function applyWineViewClasses(root, view) {
+		const isCardView = view === "cards";
+
+		VIEW_SELECTORS.forEach(function (selector) {
+			getElementsMatchingSelector(selector, root).forEach(function (element) {
+				element.classList.toggle("card", isCardView);
+			});
+		});
 	}
 
 	function formatDisplayPriceText(value) {
@@ -573,12 +594,7 @@
 
 			cardsView.classList.toggle("current", isCardView);
 			listView.classList.toggle("current", !isCardView);
-
-			VIEW_SELECTORS.forEach(function (selector) {
-				$$(selector).forEach(function (element) {
-					element.classList.toggle("card", isCardView);
-				});
-			});
+			applyWineViewClasses(document, nextView);
 		}
 
 		cardsView.addEventListener("click", function (event) {
@@ -771,6 +787,7 @@
 				return collator.compare(category, candidateCategory) < 0;
 			});
 
+			applyWineViewClasses(block, state.currentView);
 			container.insertBefore(block, nextBlock || null);
 		}
 
@@ -896,6 +913,7 @@
 			}
 
 			formatWineDisplayPrices(item);
+			applyWineViewClasses(item, state.currentView);
 			targetLocation.appendChild(item);
 			registerCartListingItems(item);
 			lastDomainKey = domainKey;
