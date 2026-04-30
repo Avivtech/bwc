@@ -11,6 +11,8 @@
 	const WINE_LIST_SELECTOR = '.wine-list[fs-list-element="list"], .wine-list.w-dyn-items';
 	const WINE_ITEM_SELECTOR = ".wine-item.w-dyn-item";
 	const WINE_DOMAIN_SELECTOR = ".wine-domaine";
+	const WINE_ITEM_ENTER_CLASS = "bwc-wine-item-enter";
+	const WINE_ITEM_ENTER_VISIBLE_CLASS = "bwc-wine-item-enter-visible";
 	const DOMAIN_SORT_COLLATOR = new Intl.Collator("fr", { sensitivity: "base" });
 	const WINES_LOADED_TEXT_DEFAULT = "WINES";
 	const DEFAULT_CATEGORY_ORDER = ["אדום", "לבן", "מבעבע", "FINE / MARC DE BOURGOGNE"];
@@ -42,6 +44,18 @@
 	const styles = `
     .filters-m-toggle.filter-on {
       text-decoration: underline;
+    }
+
+    .bwc-wine-item-enter {
+      opacity: 0;
+      transform: translateY(10px);
+      transition: opacity 260ms ease, transform 260ms ease;
+      will-change: opacity, transform;
+    }
+
+    .bwc-wine-item-enter.bwc-wine-item-enter-visible {
+      opacity: 1;
+      transform: translateY(0);
     }
 
     .bwc-domain-skeleton {
@@ -192,6 +206,14 @@
       }
     }
 
+    @media (prefers-reduced-motion: reduce) {
+      .bwc-wine-item-enter {
+        opacity: 1;
+        transform: none;
+        transition: none;
+      }
+    }
+
     @media (max-width: 991px) {
       .bwc-domain-skeleton {
         grid-template-columns: 1fr;
@@ -321,6 +343,33 @@
 			getElementsMatchingSelector(selector, root).forEach(function (element) {
 				element.classList.toggle("card", isCardView);
 			});
+		});
+	}
+
+	function prepareWineItemEnter(item) {
+		item.classList.remove(WINE_ITEM_ENTER_VISIBLE_CLASS);
+		item.classList.add(WINE_ITEM_ENTER_CLASS);
+	}
+
+	function revealWineItem(item) {
+		window.requestAnimationFrame(function () {
+			let fallbackId = null;
+			function cleanup(event) {
+				if (event && event.target !== item) {
+					return;
+				}
+
+				if (fallbackId !== null) {
+					window.clearTimeout(fallbackId);
+				}
+
+				item.classList.remove(WINE_ITEM_ENTER_CLASS, WINE_ITEM_ENTER_VISIBLE_CLASS);
+				item.removeEventListener("transitionend", cleanup);
+			}
+
+			item.addEventListener("transitionend", cleanup);
+			fallbackId = window.setTimeout(cleanup, 360);
+			item.classList.add(WINE_ITEM_ENTER_VISIBLE_CLASS);
 		});
 	}
 
@@ -888,6 +937,7 @@
 	async function appendWineItemsToBootedDom(items) {
 		const domainsByKey = new Map();
 		const sortedItems = items.slice().sort(compareWineItemsByDomainName);
+		const appendedItems = [];
 		let appendedCount = 0;
 		let lastDomainKey = "";
 
@@ -914,8 +964,10 @@
 
 			formatWineDisplayPrices(item);
 			applyWineViewClasses(item, state.currentView);
+			prepareWineItemEnter(item);
 			targetLocation.appendChild(item);
 			registerCartListingItems(item);
+			appendedItems.push(item);
 			lastDomainKey = domainKey;
 			appendedCount += 1;
 		}
@@ -936,6 +988,8 @@
 		} else {
 			refreshLastItemBorders();
 		}
+
+		appendedItems.forEach(revealWineItem);
 
 		return appendedCount;
 	}
