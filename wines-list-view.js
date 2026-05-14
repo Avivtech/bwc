@@ -14,7 +14,7 @@
 	const WINE_ITEM_ENTER_CLASS = "bwc-wine-item-enter";
 	const WINE_ITEM_ENTER_VISIBLE_CLASS = "bwc-wine-item-enter-visible";
 	const WINE_ITEM_ENTER_STAGGER_MS = 45;
-	const DOMAIN_SORT_COLLATOR = new Intl.Collator("fr", { sensitivity: "base" });
+	const DOMAIN_SORT_COLLATOR = new Intl.Collator("fr");
 	const WINES_LOADED_TEXT_DEFAULT = "WINES";
 	const DEFAULT_CATEGORY_ORDER = ["אדום", "לבן", "מבעבע", "FINE / MARC DE BOURGOGNE"];
 	const CATEGORY_CONFIGS = [
@@ -277,6 +277,7 @@
 		filterControls: [],
 		domains: [],
 		wineEntries: [],
+		wineOrderIndex: 0,
 		sortAscending: true,
 		applyFilters: null,
 		updatePagination: null,
@@ -359,6 +360,11 @@
 
 		VIEW_SELECTORS.forEach(function (selector) {
 			getElementsMatchingSelector(selector, root).forEach(function (element) {
+				if (selector === ".cat-sep-wrap") {
+					element.classList.add("card");
+					return;
+				}
+
 				element.classList.toggle("card", isCardView);
 			});
 		});
@@ -718,19 +724,31 @@
 			return;
 		}
 
-		const items = $$(".w-dyn-item", wrapper);
-		const collator = new Intl.Collator("fr", { sensitivity: "base" });
+		const items = Array.from(wrapper.children).filter(function (child) {
+			return child.classList && child.classList.contains("w-dyn-item");
+		});
+		const collator = new Intl.Collator("fr");
+
+		function getFilterLabel(item) {
+			const label = $(".filter-chk-box-txt.w-form-label", item) || $(".filter-chk-box-txt", item);
+			return normalizeText(label && label.textContent);
+		}
 
 		items
 			.sort(function (leftItem, rightItem) {
-				const leftText = normalizeText($(".filter-chk-box-txt", leftItem) && $(".filter-chk-box-txt", leftItem).textContent);
-				const rightText = normalizeText($(".filter-chk-box-txt", rightItem) && $(".filter-chk-box-txt", rightItem).textContent);
-
-				return collator.compare(leftText, rightText);
+				return collator.compare(getFilterLabel(leftItem), getFilterLabel(rightItem));
 			})
 			.forEach(function (item) {
 				wrapper.appendChild(item);
 			});
+	}
+
+	function runFilterCategoryInsideSort() {
+		try {
+			sortDomainFilterOptions();
+		} catch (error) {
+			console.error("filterCategoryInsideSort equivalent failed:", error);
+		}
 	}
 
 	function splitItemsIntoDomains() {
@@ -770,13 +788,18 @@
 			return domain;
 		});
 
-		$$(".wine-item").sort(compareWineItemsByDomainName).forEach(function (item) {
+		$$(".wine-item").forEach(function (item) {
 			const domainName = getWineItemDomainName(item);
 			const targetDomain = domainMap.get(normalizeLower(domainName));
 
 			if (!targetDomain || !targetDomain.childLocation) {
 				console.warn("Wine item has no matching domain:", domainName, item);
 				return;
+			}
+
+			if (!item.dataset.bwcOriginalOrder) {
+				item.dataset.bwcOriginalOrder = String(state.wineOrderIndex);
+				state.wineOrderIndex += 1;
 			}
 
 			targetDomain.childLocation.appendChild(item);
@@ -848,6 +871,16 @@
 		return preferredOrder.length + 100;
 	}
 
+	function getCategoryOrder(domain) {
+		const orderFromDom = $$(".order-class", domain.wrapper)
+			.map(function (element) {
+				return normalizeText(element.textContent);
+			})
+			.filter(Boolean);
+
+		return orderFromDom.length ? orderFromDom : DEFAULT_CATEGORY_ORDER;
+	}
+
 	function ensureCategoryBlock(domain, category) {
 		const container = $(".winecatgroupcontainer", domain.wrapper);
 		const template = getCategoryTemplate();
@@ -872,7 +905,6 @@
 
 			const blocks = $$(".cat-sep", container);
 			const targetOrder = getCategoryOrderIndex(domain, category);
-			const collator = new Intl.Collator("fr", { sensitivity: "base" });
 			const nextBlock = blocks.find(function (candidate) {
 				const candidateCategory = normalizeText(candidate.dataset.category || ($(".cat-sep-text", candidate) && $(".cat-sep-text", candidate).textContent));
 				const candidateOrder = getCategoryOrderIndex(domain, candidateCategory);
@@ -881,7 +913,7 @@
 					return targetOrder < candidateOrder;
 				}
 
-				return collator.compare(category, candidateCategory) < 0;
+				return false;
 			});
 
 			applyWineViewClasses(block, state.currentView);
@@ -1010,7 +1042,7 @@
 
 	async function appendWineItemsToBootedDom(items) {
 		const domainsByKey = new Map();
-		const sortedItems = items.slice().sort(compareWineItemsByDomainName);
+		const orderedItems = items.slice();
 		const appendedItems = [];
 		let appendedCount = 0;
 		let lastDomainKey = "";
@@ -1021,7 +1053,7 @@
 			}
 		});
 
-		for (const item of sortedItems) {
+		for (const item of orderedItems) {
 			const domainName = getWineItemDomainName(item);
 			const category = normalizeText($(".wine-cat", item) && $(".wine-cat", item).textContent);
 			const domainKey = normalizeLower(domainName);
@@ -1032,6 +1064,11 @@
 				continue;
 			}
 
+			if (!item.dataset.bwcOriginalOrder) {
+				item.dataset.bwcOriginalOrder = String(state.wineOrderIndex);
+				state.wineOrderIndex += 1;
+			}
+
 			if (lastDomainKey && lastDomainKey !== domainKey) {
 				await nextFrame();
 			}
@@ -1040,7 +1077,10 @@
 			applyWineViewClasses(item, state.currentView);
 			prepareWineItemEnter(item);
 			syncCategorySkeleton(targetLocation.closest(".cat-sep"));
-			targetLocation.insertBefore(item, getCategoryListSkeleton(targetLocation) || null);
+			targetLocation.appendChild(item);
+			if (getCategoryListSkeleton(targetLocation)) {
+				targetLocation.appendChild(getCategoryListSkeleton(targetLocation));
+			}
 			registerCartListingItems(item);
 			appendedItems.push(item);
 			lastDomainKey = domainKey;
@@ -1087,13 +1127,7 @@
 				return;
 			}
 
-			const orderFromDom = $$(".order-class", domain.wrapper)
-				.map(function (element) {
-					return normalizeText(element.textContent);
-				})
-				.filter(Boolean);
-
-			const preferredOrder = orderFromDom.length ? orderFromDom : DEFAULT_CATEGORY_ORDER;
+			const preferredOrder = getCategoryOrder(domain);
 			const groupedWines = new Map();
 
 			wines.forEach(function (wine) {
@@ -1109,17 +1143,35 @@
 				groupedWines.get(category).push(wine);
 			});
 
-			const orderedCategories = preferredOrder
-				.filter(function (category, index, list) {
-					return groupedWines.has(category) && list.indexOf(category) === index;
-				})
-				.concat(
-					Array.from(groupedWines.keys())
-						.filter(function (category) {
-							return preferredOrder.indexOf(category) === -1;
-						})
-						.sort(new Intl.Collator("fr", { sensitivity: "base" }).compare),
+			groupedWines.forEach(function (categoryWines) {
+				categoryWines.sort(function (leftWine, rightWine) {
+					const leftOrder = Number.parseInt(leftWine.dataset.bwcOriginalOrder || "0", 10);
+					const rightOrder = Number.parseInt(rightWine.dataset.bwcOriginalOrder || "0", 10);
+					return leftOrder - rightOrder;
+				});
+			});
+
+			const orderedCategories = preferredOrder.filter(function (category, index, list) {
+				return groupedWines.has(category) && list.indexOf(category) === index;
+			});
+			const leftoverCategories = Array.from(groupedWines.keys()).filter(function (category) {
+				return preferredOrder.indexOf(category) === -1;
+			});
+
+			if (leftoverCategories.length) {
+				console.warn(
+					"check please if all cat names are valid",
+					leftoverCategories.map(function (category) {
+						return [category, groupedWines.get(category)];
+					}),
 				);
+			}
+
+			leftoverCategories.forEach(function (category) {
+				if (orderedCategories.indexOf(category) === -1) {
+					orderedCategories.push(category);
+				}
+			});
 
 			container.innerHTML = "";
 
@@ -1135,9 +1187,10 @@
 				title.textContent = category;
 				template.dataset.category = category;
 
-				groupedWines.get(category).forEach(function (wine) {
-					childLocation.appendChild(wine);
-				});
+				const categoryWines = groupedWines.get(category) || [];
+				for (let index = categoryWines.length - 1; index >= 0; index -= 1) {
+					childLocation.appendChild(categoryWines[index]);
+				}
 
 				container.appendChild(template);
 			});
@@ -1211,11 +1264,11 @@
 			return;
 		}
 
-		const collator = new Intl.Collator("fr", { sensitivity: "base" });
+		const collator = new Intl.Collator("fr");
 
 		function buildGroups() {
-			const groups = [];
-			const childrenByParent = new Map();
+			const topLevelDomains = [];
+			const subDomains = [];
 			const domainsByKey = new Map();
 
 			state.domains
@@ -1225,15 +1278,11 @@
 				.forEach(function (domain) {
 					domainsByKey.set(domain.nameKey, domain);
 					if (domain.parentKey) {
-						if (!childrenByParent.has(domain.parentKey)) {
-							childrenByParent.set(domain.parentKey, []);
-						}
-
-						childrenByParent.get(domain.parentKey).push(domain);
+						subDomains.push(domain);
 						return;
 					}
 
-					groups.push(domain);
+					topLevelDomains.push(domain);
 				});
 
 			state.domains
@@ -1241,12 +1290,13 @@
 					return domain.wrapper.isConnected && domain.parentKey && !domainsByKey.has(domain.parentKey);
 				})
 				.forEach(function (orphan) {
-					groups.push(orphan);
+					topLevelDomains.push(orphan);
 				});
 
 			return {
-				topLevel: groups,
-				childrenByParent: childrenByParent,
+				topLevel: topLevelDomains,
+				subDomains: subDomains,
+				domainsByKey: domainsByKey,
 			};
 		}
 
@@ -1278,18 +1328,17 @@
 
 			topLevel.forEach(function (domain) {
 				container.appendChild(domain.wrapper);
+			});
 
-				const children = (groups.childrenByParent.get(domain.nameKey) || []).slice().sort(function (leftDomain, rightDomain) {
-					return collator.compare(leftDomain.name, rightDomain.name);
-				});
-
-				if (!state.sortAscending) {
-					children.reverse();
+			groups.subDomains.forEach(function (curr) {
+				const parentDomain = groups.domainsByKey.get(curr.parentKey);
+				if (!parentDomain || !parentDomain.wrapper || !parentDomain.wrapper.isConnected) {
+					console.error("parentDomain during sorting not found", curr);
+					container.appendChild(curr.wrapper);
+					return;
 				}
 
-				children.forEach(function (childDomain) {
-					container.appendChild(childDomain.wrapper);
-				});
+				parentDomain.wrapper.after(curr.wrapper);
 			});
 
 			updateArrowDirection();
@@ -1923,13 +1972,13 @@
 			return;
 		}
 
-		if (!$(".cart-item")) {
-			window.__bwcCartInitialized = true;
-			return;
-		}
-
 		window.__bwcCartInitialized = true;
-		window.runINIT();
+
+		try {
+			window.runINIT();
+		} catch (error) {
+			console.error("runINIT failed:", error);
+		}
 	}
 
 	function boot() {
@@ -1941,22 +1990,23 @@
 
 		injectStyles();
 		initFilterBarMove();
-		initCart();
 		sortDomainFilterOptions();
 		splitItemsIntoDomains();
+		initCart();
 		initWineType();
+		initWineSort();
+		removeUnusedYears();
+		runFilterCategoryInsideSort();
 		syncDomainSkeletons();
 		formatWineDisplayPrices(document);
 		registerCartListingItems(document);
 		collectWineEntries();
-		removeUnusedYears();
 		state.activeFilters = parseActiveFilters();
 		initToggleView();
 		initPagination();
 		initFilters();
 		initSearchUi();
 		initMobileFilterRelay();
-		initWineSort();
 		refreshLastItemBorders();
 	}
 
@@ -2093,9 +2143,11 @@
 
 	function finalizeLoadedWinePages() {
 		state.allWinePagesLoaded = true;
+		initWineType();
 		syncDomainSkeletons();
 		pruneEmptyDomains();
 		removeUnusedYears();
+		runFilterCategoryInsideSort();
 		collectWineEntries();
 
 		if (typeof state.applyFilters === "function") {
@@ -2153,7 +2205,7 @@
 					if (window.__bwcWinesListViewBooted) {
 						await appendWineItemsToBootedDom(loadedItems);
 					} else {
-						loadedItems.slice().sort(compareWineItemsByDomainName).forEach(function (item) {
+						loadedItems.forEach(function (item) {
 							wineList.appendChild(item);
 						});
 					}
