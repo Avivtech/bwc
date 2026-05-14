@@ -1149,10 +1149,10 @@
 					const rightSort = Number.parseFloat(rightWine.getAttribute("data-sort") || "0") || 0;
 
 					if (leftSort !== rightSort) {
-						return rightSort - leftSort;
+						return leftSort - rightSort;
 					}
 
-					return DOMAIN_SORT_COLLATOR.compare(getWineItemName(leftWine), getWineItemName(rightWine));
+					return DOMAIN_SORT_COLLATOR.compare(getWineItemName(rightWine), getWineItemName(leftWine));
 				});
 			});
 
