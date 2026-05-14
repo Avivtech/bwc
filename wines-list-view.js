@@ -1145,9 +1145,14 @@
 
 			groupedWines.forEach(function (categoryWines) {
 				categoryWines.sort(function (leftWine, rightWine) {
-					const leftOrder = Number.parseInt(leftWine.dataset.bwcOriginalOrder || "0", 10);
-					const rightOrder = Number.parseInt(rightWine.dataset.bwcOriginalOrder || "0", 10);
-					return leftOrder - rightOrder;
+					const leftSort = Number.parseFloat(leftWine.getAttribute("data-sort") || "0") || 0;
+					const rightSort = Number.parseFloat(rightWine.getAttribute("data-sort") || "0") || 0;
+
+					if (leftSort !== rightSort) {
+						return rightSort - leftSort;
+					}
+
+					return DOMAIN_SORT_COLLATOR.compare(getWineItemName(leftWine), getWineItemName(rightWine));
 				});
 			});
 
@@ -1188,9 +1193,9 @@
 				template.dataset.category = category;
 
 				const categoryWines = groupedWines.get(category) || [];
-				for (let index = categoryWines.length - 1; index >= 0; index -= 1) {
-					childLocation.appendChild(categoryWines[index]);
-				}
+				categoryWines.forEach(function (wine) {
+					childLocation.appendChild(wine);
+				});
 
 				container.appendChild(template);
 			});
